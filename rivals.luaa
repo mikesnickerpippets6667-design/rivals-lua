@@ -281,4 +281,3 @@ RunService.PreSimulation:Connect(function(deltaTime)
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
-    
