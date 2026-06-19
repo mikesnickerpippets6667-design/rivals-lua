@@ -177,13 +177,48 @@ local function makeDraggable(frame, dragHandle)
     end)
 end
 
--- ORBIT FUNCTIONALITY WITH UPDATED VALUES
+-- ENEMY ORBIT FUNCTIONALITY WITH UPDATED VALUES
 local orbitEnabled = false
 local orbitHeight = 4 -- Updated to 4 as requested
 local orbitDistance = 8 -- Updated to 8 as requested
 local orbitSpeed = 25 -- Updated to 25 as requested
 local orbitAngle = 0
 local orbitConnection = nil
+local targetPlayer = nil
+
+-- Function to find the closest enemy
+local function getClosestEnemy()
+    local closestEnemy = nil
+    local closestDistance = math.huge
+    
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+    
+    local playerPosition = player.Character.HumanoidRootPart.Position
+    
+    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            -- Check if this player is an enemy (not on the same team)
+            local isEnemy = true
+            if player.Team and otherPlayer.Team and player.Team == otherPlayer.Team then
+                isEnemy = false
+            end
+            
+            if isEnemy then
+                local enemyPosition = otherPlayer.Character.HumanoidRootPart.Position
+                local distance = (playerPosition - enemyPosition).Magnitude
+                
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestEnemy = otherPlayer
+                end
+            end
+        end
+    end
+    
+    return closestEnemy
+end
 
 local function startOrbit()
     if orbitEnabled or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
@@ -191,63 +226,27 @@ local function startOrbit()
     end
     
     orbitEnabled = true
-    local character = player.Character
-    local humanoidRootPart = character.HumanoidRootPart
     
     orbitConnection = RunService.Heartbeat:Connect(function(deltaTime)
-        if not orbitEnabled or not character or not humanoidRootPart then
+        if not orbitEnabled or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
             return
         end
         
-        orbitAngle = orbitAngle + (orbitSpeed * deltaTime * 0.1) -- Scaled down for smoother movement
-        local offsetX = math.cos(orbitAngle) * orbitDistance
-        local offsetZ = math.sin(orbitAngle) * orbitDistance
+        -- Find the closest enemy
+        targetPlayer = getClosestEnemy()
         
-        -- Apply position offset
-        humanoidRootPart.Velocity = Vector3.new(
-            offsetX * 2,
-            orbitHeight,
-            offsetZ * 2
-        )
-    end)
-end
-
-local function stopOrbit()
-    if not orbitEnabled then
-        return
-    end
-    
-    orbitEnabled = false
-    if orbitConnection then
-        orbitConnection:Disconnect()
-        orbitConnection = nil
-    end
-    
-    -- Reset velocity when stopping
-    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        player.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
-    end
-end
-
--- IMPROVED VOIDSPAM FUNCTIONALITY
-local voidSpamEnabled = false
-local voidSpamConnection = nil
-local voidSpamRate = 0.05 -- Faster spawn rate for better effect
-local lastVoidTime = 0
-local voidSpamRange = 50
-local voidSpamCount = 5 -- Number of void parts per activation
-local voidParts = {} -- Store created void parts
-
-local function createVoidPart(position)
-    local voidPart = Instance.new("Part")
-    voidPart.Size = Vector3.new(5, 0.5, 5)
-    voidPart.Position = position
-    voidPart.Anchored = true
-    voidPart.CanCollide = false
-    voidPart.Transparency = 0.3
-    voidPart.Material = Enum.Material.Neon
-    voidPart.Color = THEME.Accent
-    voidPart.Name = "VoidPart"
-    
-    -- Add some visual effects
-    local
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local targetPosition = targetPlayer.Character.HumanoidRootPart.Position
+            
+            orbitAngle = orbitAngle + (orbitSpeed * deltaTime * 0.1) -- Scaled down for smoother movement
+            local offsetX = math.cos(orbitAngle) * orbitDistance
+            local offsetZ = math.sin(orbitAngle) * orbitDistance
+            
+            -- Calculate the orbit position around the target
+            local orbitPosition = Vector3.new(
+                targetPosition.X + offsetX,
+                targetPosition.Y + orbitHeight,
+                targetPosition.Z + offsetZ
+            )
+            
+            -- Move the
