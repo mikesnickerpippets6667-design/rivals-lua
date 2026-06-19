@@ -1,0 +1,193 @@
+-- UI CREATION WITH WHALE THEME
+local function buildWhaleUI()
+    -- Main Frame
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "WhaleMain"
+    mainFrame.Size = UDim2.fromOffset(420, 300)
+    mainFrame.Position = UDim2.new(0.5, -210, 0.5, -150)
+    mainFrame.BackgroundColor3 = THEME.Background
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Parent = screenGui
+    
+    -- Add corner and gradient to main frame
+    local mainCorner = addCorner(mainFrame, 15)
+    local mainGradient = addGradient(mainFrame, THEME.BackgroundLight, THEME.Background, 180)
+    
+    -- Title Bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Name = "TitleBar"
+    titleBar.Size = UDim2.new(1, 0, 0, 50)
+    titleBar.Position = UDim2.new(0, 0, 0, 0)
+    titleBar.BackgroundColor3 = THEME.Panel
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = mainFrame
+    
+    local titleCorner = addCorner(titleBar, 15)
+    local titleGradient = addGradient(titleBar, THEME.PanelLight, THEME.Panel, 180)
+    
+    -- Title
+    local title = Instance.new("TextLabel")
+    title.Name = "Title"
+    title.Size = UDim2.new(0, 200, 1, 0)
+    title.Position = UDim2.new(0, 20, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Font = Enum.Font.GothamBold
+    title.Text = "🐋 Whale Rivals"
+    title.TextColor3 = THEME.Text
+    title.TextSize = 20
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = titleBar
+    
+    -- Whale Icon
+    local whaleIcon = Instance.new("ImageLabel")
+    whaleIcon.Name = "WhaleIcon"
+    whaleIcon.Size = UDim2.fromOffset(30, 30)
+    whaleIcon.Position = UDim2.new(1, -50, 0, 10)
+    whaleIcon.BackgroundTransparency = 1
+    whaleIcon.Image = "rbxassetid://6031068421"
+    whaleIcon.Parent = titleBar
+    
+    -- Content Frame
+    local contentFrame = Instance.new("Frame")
+    contentFrame.Name = "Content"
+    contentFrame.Size = UDim2.new(1, -40, 1, -70)
+    contentFrame.Position = UDim2.new(0, 20, 0, 60)
+    contentFrame.BackgroundTransparency = 1
+    contentFrame.Parent = mainFrame
+    
+    -- Orbit Section
+    local orbitSection = Instance.new("Frame")
+    orbitSection.Name = "OrbitSection"
+    orbitSection.Size = UDim2.new(1, 0, 0, 100)
+    orbitSection.Position = UDim2.new(0, 0, 0, 0)
+    orbitSection.BackgroundColor3 = THEME.Panel
+    orbitSection.BorderSizePixel = 0
+    orbitSection.Parent = contentFrame
+    
+    local orbitCorner = addCorner(orbitSection, 10)
+    local orbitGradient = addGradient(orbitSection, THEME.PanelLight, THEME.Panel, 180)
+    
+    -- Orbit Title
+    local orbitTitle = Instance.new("TextLabel")
+    orbitTitle.Name = "OrbitTitle"
+    orbitTitle.Size = UDim2.new(0, 100, 0, 30)
+    orbitTitle.Position = UDim2.new(0, 15, 0, 10)
+    orbitTitle.BackgroundTransparency = 1
+    orbitTitle.Font = Enum.Font.Gotham
+    orbitTitle.Text = "Orbit"
+    orbitTitle.TextColor3 = THEME.Text
+    orbitTitle.TextSize = 16
+    orbitTitle.TextXAlignment = Enum.TextXAlignment.Left
+    orbitTitle.Parent = orbitSection
+    
+    -- Orbit Status Label
+    local orbitStatus = Instance.new("TextLabel")
+    orbitStatus.Name = "OrbitStatus"
+    orbitStatus.Size = UDim2.new(0, 50, 0, 30)
+    orbitStatus.Position = UDim2.new(1, -65, 0, 10)
+    orbitStatus.BackgroundTransparency = 1
+    orbitStatus.Font = Enum.Font.GothamBold
+    orbitStatus.Text = "OFF"
+    orbitStatus.TextColor3 = THEME.OffColor
+    orbitStatus.TextSize = 16
+    orbitStatus.Parent = orbitSection
+    
+    -- Orbit Toggle Button
+    local orbitToggle = Instance.new("TextButton")
+    orbitToggle.Name = "OrbitToggle"
+    orbitToggle.Size = UDim2.new(0, 80, 0, 35)
+    orbitToggle.Position = UDim2.new(0, 15, 0, 50)
+    orbitToggle.BackgroundColor3 = THEME.OffColor
+    orbitToggle.BorderSizePixel = 0
+    orbitToggle.Font = Enum.Font.GothamBold
+    orbitToggle.Text = "Toggle"
+    orbitToggle.TextColor3 = THEME.Text
+    orbitToggle.TextSize = 14
+    orbitToggle.Parent = orbitSection
+    
+    local orbitToggleCorner = addCorner(orbitToggle, 8)
+    
+    -- Orbit Parameters
+    local orbitParams = Instance.new("Frame")
+    orbitParams.Name = "OrbitParams"
+    orbitParams.Size = UDim2.new(0, 150, 0, 35)
+    orbitParams.Position = UDim2.new(0, 110, 0, 50)
+    orbitParams.BackgroundTransparency = 1
+    orbitParams.Parent = orbitSection
+    
+    -- Height Label
+    local heightLabel = Instance.new("TextLabel")
+    heightLabel.Name = "HeightLabel"
+    heightLabel.Size = UDim2.new(0, 50, 1, 0)
+    heightLabel.Position = UDim2.new(0, 0, 0, 0)
+    heightLabel.BackgroundTransparency = 1
+    heightLabel.Font = Enum.Font.Gotham
+    heightLabel.Text = "Height: 4"
+    heightLabel.TextColor3 = THEME.TextDark
+    heightLabel.TextSize = 12
+    heightLabel.Parent = orbitParams
+    
+    -- Distance Label
+    local distanceLabel = Instance.new("TextLabel")
+    distanceLabel.Name = "DistanceLabel"
+    distanceLabel.Size = UDim2.new(0, 60, 1, 0)
+    distanceLabel.Position = UDim2.new(0, 50, 0, 0)
+    distanceLabel.BackgroundTransparency = 1
+    distanceLabel.Font = Enum.Font.Gotham
+    distanceLabel.Text = "Dist: 8"
+    distanceLabel.TextColor3 = THEME.TextDark
+    distanceLabel.TextSize = 12
+    distanceLabel.Parent = orbitParams
+    
+    -- Speed Label
+    local speedLabel = Instance.new("TextLabel")
+    speedLabel.Name = "SpeedLabel"
+    speedLabel.Size = UDim2.new(0, 40, 1, 0)
+    speedLabel.Position = UDim2.new(0, 110, 0, 0)
+    speedLabel.BackgroundTransparency = 1
+    speedLabel.Font = Enum.Font.Gotham
+    speedLabel.Text = "Spd: 25"
+    speedLabel.TextColor3 = THEME.TextDark
+    speedLabel.TextSize = 12
+    speedLabel.Parent = orbitParams
+    
+    -- Void Spam Section
+    local voidSection = Instance.new("Frame")
+    voidSection.Name = "VoidSection"
+    voidSection.Size = UDim2.new(1, 0, 0, 100)
+    voidSection.Position = UDim2.new(0, 0, 0, 110)
+    voidSection.BackgroundColor3 = THEME.Panel
+    voidSection.BorderSizePixel = 0
+    voidSection.Parent = contentFrame
+    
+    local voidCorner = addCorner(voidSection, 10)
+    local voidGradient = addGradient(voidSection, THEME.PanelLight, THEME.Panel, 180)
+    
+    -- Void Title
+    local voidTitle = Instance.new("TextLabel")
+    voidTitle.Name = "VoidTitle"
+    voidTitle.Size = UDim2.new(0, 100, 0, 30)
+    voidTitle.Position = UDim2.new(0, 15, 0, 10)
+    voidTitle.BackgroundTransparency = 1
+    voidTitle.Font = Enum.Font.Gotham
+    voidTitle.Text = "Void Spam"
+    voidTitle.TextColor3 = THEME.Text
+    voidTitle.TextSize = 16
+    voidTitle.TextXAlignment = Enum.TextXAlignment.Left
+    voidTitle.Parent = voidSection
+    
+    -- Void Status Label
+    local voidStatus = Instance.new("TextLabel")
+    voidStatus.Name = "VoidStatus"
+    voidStatus.Size = UDim2.new(0, 50, 0, 30)
+    voidStatus.Position = UDim2.new(1, -65, 0, 10)
+    voidStatus.BackgroundTransparency = 1
+    voidStatus.Font = Enum.Font.GothamBold
+    voidStatus.Text = "OFF"
+    voidStatus.TextColor3 = THEME.OffColor
+    voidStatus.TextSize = 16
+    voidStatus.Parent = voidSection
+    
+    -- Void Toggle Button
+    local voidToggle = Instance.new("TextButton")
+   
