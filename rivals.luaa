@@ -1,193 +1,253 @@
--- UI CREATION WITH WHALE THEME
-local function buildWhaleUI()
-    -- Main Frame
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Name = "WhaleMain"
-    mainFrame.Size = UDim2.fromOffset(420, 300)
-    mainFrame.Position = UDim2.new(0.5, -210, 0.5, -150)
-    mainFrame.BackgroundColor3 = THEME.Background
-    mainFrame.BorderSizePixel = 0
-    mainFrame.Parent = screenGui
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local PhysicsService = game:GetService("PhysicsService")
+local player = Players.LocalPlayer
+
+-- Config
+local VALID_KEY = "Free"
+
+-- Dark Blue Whale Theme
+local THEME = {
+    Background = Color3.fromRGB(10, 20, 40), -- Deep ocean blue
+    BackgroundLight = Color3.fromRGB(15, 30, 55),
+    Panel = Color3.fromRGB(20, 35, 65),
+    PanelLight = Color3.fromRGB(25, 45, 80),
+    Accent = Color3.fromRGB(50, 150, 255), -- Whale blue
+    AccentDark = Color3.fromRGB(30, 100, 200),
+    AccentLight = Color3.fromRGB(100, 180, 255),
+    Text = Color3.fromRGB(220, 240, 255), -- Soft white text
+    TextDark = Color3.fromRGB(180, 200, 220),
+    OnColor = Color3.fromRGB(80, 200, 120), -- Green for "on"
+    OffColor = Color3.fromRGB(200, 80, 80), -- Red for "off"
+    Wave = Color3.fromRGB(40, 90, 150), -- Wave blue
+    Bubble = Color3.fromRGB(150, 200, 255), -- Light blue for bubbles
+}
+
+-- ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "WhaleUI"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Collision Groups Setup (Anti-Kiciahook/Unnamed)
+local MY_GROUP = "MyPlayerGroup"
+local OTHERS_GROUP = "OthersGroup"
+
+pcall(function()
+    PhysicsService:CreateCollisionGroup(MY_GROUP)
+    PhysicsService:CreateCollisionGroup(OTHERS_GROUP)
+end)
+
+PhysicsService:CollisionGroupSetCollidable(MY_GROUP, OTHERS_GROUP, false)
+
+local function setupCollisionFiltering()
+    local character = player.Character
+    if not character then return end
     
-    -- Add corner and gradient to main frame
-    local mainCorner = addCorner(mainFrame, 15)
-    local mainGradient = addGradient(mainFrame, THEME.BackgroundLight, THEME.Background, 180)
+    for _, part in ipairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            PhysicsService:SetPartCollisionGroup(part, MY_GROUP)
+        end
+    end
     
-    -- Title Bar
-    local titleBar = Instance.new("Frame")
-    titleBar.Name = "TitleBar"
-    titleBar.Size = UDim2.new(1, 0, 0, 50)
-    titleBar.Position = UDim2.new(0, 0, 0, 0)
-    titleBar.BackgroundColor3 = THEME.Panel
-    titleBar.BorderSizePixel = 0
-    titleBar.Parent = mainFrame
+    for _, other in ipairs(Players:GetPlayers()) do
+        if other ~= player and other.Character then
+            local isExploiter = false
+            local char = other.Character
+            
+            if char then
+                if char:GetAttribute("KiciaHook") or char:GetAttribute("Unnamed") 
+                   or char:GetAttribute("Kiciaczek") or char:GetAttribute("Hook") then
+                    isExploiter = true
+                end
+                
+                if char:FindFirstChild("KiciaHook") or char:FindFirstChild("Unnamed") 
+                   or char:FindFirstChild("UnnamedESP") or char:FindFirstChild("Kicia") then
+                    isExploiter = true
+                end
+                
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum and hum:GetAttribute("Kicia") then
+                    isExploiter = true
+                end
+            end
+            
+            if other:GetAttribute("UsingKicia") or other:GetAttribute("UsingUnnamed") then
+                isExploiter = true
+            end
+            
+            if isExploiter then
+                for _, part in ipairs(other.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        PhysicsService:SetPartCollisionGroup(part, OTHERS_GROUP)
+                    end
+                end
+            end
+        end
+    end
+end
+
+player.CharacterAdded:Connect(function()
+    task.wait(0.5)
+    setupCollisionFiltering()
+end)
+
+if player.Character then
+    setupCollisionFiltering()
+end
+
+Players.PlayerAdded:Connect(function(other)
+    other.CharacterAdded:Connect(function()
+        task.wait(1)
+        setupCollisionFiltering()
+    end)
+end)
+
+-- Styling helpers
+local function addCorner(parent, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, radius or 8)
+    c.Parent = parent
+    return c
+end
+
+local function addGradient(parent, topColor, bottomColor, rotation)
+    local g = Instance.new("UIGradient")
+    g.Color = ColorSequence.new(topColor, bottomColor)
+    g.Rotation = rotation or 90
+    g.Parent = parent
+    return g
+end
+
+local function addStroke(parent, color, thickness, transparency)
+    local s = Instance.new("UIStroke")
+    s.Color = color or THEME.Sand
+    s.Thickness = thickness or 1
+    s.Transparency = transparency or 0.5
+    s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    s.Parent = parent
+    return s
+end
+
+local function wireButtonTweens(btn, base, hover, down)
+    local info = TweenInfo.new(0.12, Enum.EasingStyle.Quad)
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, info, {BackgroundColor3 = hover}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, info, {BackgroundColor3 = base}):Play()
+    end)
+    btn.MouseButton1Down:Connect(function()
+        TweenService:Create(btn, info, {BackgroundColor3 = down}):Play()
+    end)
+    btn.MouseButton1Up:Connect(function()
+        TweenService:Create(btn, info, {BackgroundColor3 = hover}):Play()
+    end)
+end
+
+local function makeDraggable(frame, dragHandle)
+    local dragging, dragStart, startPos
+
+    dragHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- ORBIT FUNCTIONALITY WITH UPDATED VALUES
+local orbitEnabled = false
+local orbitHeight = 4 -- Updated to 4 as requested
+local orbitDistance = 8 -- Updated to 8 as requested
+local orbitSpeed = 25 -- Updated to 25 as requested
+local orbitAngle = 0
+local orbitConnection = nil
+
+local function startOrbit()
+    if orbitEnabled or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        return
+    end
     
-    local titleCorner = addCorner(titleBar, 15)
-    local titleGradient = addGradient(titleBar, THEME.PanelLight, THEME.Panel, 180)
+    orbitEnabled = true
+    local character = player.Character
+    local humanoidRootPart = character.HumanoidRootPart
     
-    -- Title
-    local title = Instance.new("TextLabel")
-    title.Name = "Title"
-    title.Size = UDim2.new(0, 200, 1, 0)
-    title.Position = UDim2.new(0, 20, 0, 0)
-    title.BackgroundTransparency = 1
-    title.Font = Enum.Font.GothamBold
-    title.Text = "🐋 Whale Rivals"
-    title.TextColor3 = THEME.Text
-    title.TextSize = 20
-    title.TextXAlignment = Enum.TextXAlignment.Left
-    title.Parent = titleBar
+    orbitConnection = RunService.Heartbeat:Connect(function(deltaTime)
+        if not orbitEnabled or not character or not humanoidRootPart then
+            return
+        end
+        
+        orbitAngle = orbitAngle + (orbitSpeed * deltaTime * 0.1) -- Scaled down for smoother movement
+        local offsetX = math.cos(orbitAngle) * orbitDistance
+        local offsetZ = math.sin(orbitAngle) * orbitDistance
+        
+        -- Apply position offset
+        humanoidRootPart.Velocity = Vector3.new(
+            offsetX * 2,
+            orbitHeight,
+            offsetZ * 2
+        )
+    end)
+end
+
+local function stopOrbit()
+    if not orbitEnabled then
+        return
+    end
     
-    -- Whale Icon
-    local whaleIcon = Instance.new("ImageLabel")
-    whaleIcon.Name = "WhaleIcon"
-    whaleIcon.Size = UDim2.fromOffset(30, 30)
-    whaleIcon.Position = UDim2.new(1, -50, 0, 10)
-    whaleIcon.BackgroundTransparency = 1
-    whaleIcon.Image = "rbxassetid://6031068421"
-    whaleIcon.Parent = titleBar
+    orbitEnabled = false
+    if orbitConnection then
+        orbitConnection:Disconnect()
+        orbitConnection = nil
+    end
     
-    -- Content Frame
-    local contentFrame = Instance.new("Frame")
-    contentFrame.Name = "Content"
-    contentFrame.Size = UDim2.new(1, -40, 1, -70)
-    contentFrame.Position = UDim2.new(0, 20, 0, 60)
-    contentFrame.BackgroundTransparency = 1
-    contentFrame.Parent = mainFrame
+    -- Reset velocity when stopping
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        player.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+    end
+end
+
+-- IMPROVED VOIDSPAM FUNCTIONALITY
+local voidSpamEnabled = false
+local voidSpamConnection = nil
+local voidSpamRate = 0.05 -- Faster spawn rate for better effect
+local lastVoidTime = 0
+local voidSpamRange = 50
+local voidSpamCount = 5 -- Number of void parts per activation
+local voidParts = {} -- Store created void parts
+
+local function createVoidPart(position)
+    local voidPart = Instance.new("Part")
+    voidPart.Size = Vector3.new(5, 0.5, 5)
+    voidPart.Position = position
+    voidPart.Anchored = true
+    voidPart.CanCollide = false
+    voidPart.Transparency = 0.3
+    voidPart.Material = Enum.Material.Neon
+    voidPart.Color = THEME.Accent
+    voidPart.Name = "VoidPart"
     
-    -- Orbit Section
-    local orbitSection = Instance.new("Frame")
-    orbitSection.Name = "OrbitSection"
-    orbitSection.Size = UDim2.new(1, 0, 0, 100)
-    orbitSection.Position = UDim2.new(0, 0, 0, 0)
-    orbitSection.BackgroundColor3 = THEME.Panel
-    orbitSection.BorderSizePixel = 0
-    orbitSection.Parent = contentFrame
-    
-    local orbitCorner = addCorner(orbitSection, 10)
-    local orbitGradient = addGradient(orbitSection, THEME.PanelLight, THEME.Panel, 180)
-    
-    -- Orbit Title
-    local orbitTitle = Instance.new("TextLabel")
-    orbitTitle.Name = "OrbitTitle"
-    orbitTitle.Size = UDim2.new(0, 100, 0, 30)
-    orbitTitle.Position = UDim2.new(0, 15, 0, 10)
-    orbitTitle.BackgroundTransparency = 1
-    orbitTitle.Font = Enum.Font.Gotham
-    orbitTitle.Text = "Orbit"
-    orbitTitle.TextColor3 = THEME.Text
-    orbitTitle.TextSize = 16
-    orbitTitle.TextXAlignment = Enum.TextXAlignment.Left
-    orbitTitle.Parent = orbitSection
-    
-    -- Orbit Status Label
-    local orbitStatus = Instance.new("TextLabel")
-    orbitStatus.Name = "OrbitStatus"
-    orbitStatus.Size = UDim2.new(0, 50, 0, 30)
-    orbitStatus.Position = UDim2.new(1, -65, 0, 10)
-    orbitStatus.BackgroundTransparency = 1
-    orbitStatus.Font = Enum.Font.GothamBold
-    orbitStatus.Text = "OFF"
-    orbitStatus.TextColor3 = THEME.OffColor
-    orbitStatus.TextSize = 16
-    orbitStatus.Parent = orbitSection
-    
-    -- Orbit Toggle Button
-    local orbitToggle = Instance.new("TextButton")
-    orbitToggle.Name = "OrbitToggle"
-    orbitToggle.Size = UDim2.new(0, 80, 0, 35)
-    orbitToggle.Position = UDim2.new(0, 15, 0, 50)
-    orbitToggle.BackgroundColor3 = THEME.OffColor
-    orbitToggle.BorderSizePixel = 0
-    orbitToggle.Font = Enum.Font.GothamBold
-    orbitToggle.Text = "Toggle"
-    orbitToggle.TextColor3 = THEME.Text
-    orbitToggle.TextSize = 14
-    orbitToggle.Parent = orbitSection
-    
-    local orbitToggleCorner = addCorner(orbitToggle, 8)
-    
-    -- Orbit Parameters
-    local orbitParams = Instance.new("Frame")
-    orbitParams.Name = "OrbitParams"
-    orbitParams.Size = UDim2.new(0, 150, 0, 35)
-    orbitParams.Position = UDim2.new(0, 110, 0, 50)
-    orbitParams.BackgroundTransparency = 1
-    orbitParams.Parent = orbitSection
-    
-    -- Height Label
-    local heightLabel = Instance.new("TextLabel")
-    heightLabel.Name = "HeightLabel"
-    heightLabel.Size = UDim2.new(0, 50, 1, 0)
-    heightLabel.Position = UDim2.new(0, 0, 0, 0)
-    heightLabel.BackgroundTransparency = 1
-    heightLabel.Font = Enum.Font.Gotham
-    heightLabel.Text = "Height: 4"
-    heightLabel.TextColor3 = THEME.TextDark
-    heightLabel.TextSize = 12
-    heightLabel.Parent = orbitParams
-    
-    -- Distance Label
-    local distanceLabel = Instance.new("TextLabel")
-    distanceLabel.Name = "DistanceLabel"
-    distanceLabel.Size = UDim2.new(0, 60, 1, 0)
-    distanceLabel.Position = UDim2.new(0, 50, 0, 0)
-    distanceLabel.BackgroundTransparency = 1
-    distanceLabel.Font = Enum.Font.Gotham
-    distanceLabel.Text = "Dist: 8"
-    distanceLabel.TextColor3 = THEME.TextDark
-    distanceLabel.TextSize = 12
-    distanceLabel.Parent = orbitParams
-    
-    -- Speed Label
-    local speedLabel = Instance.new("TextLabel")
-    speedLabel.Name = "SpeedLabel"
-    speedLabel.Size = UDim2.new(0, 40, 1, 0)
-    speedLabel.Position = UDim2.new(0, 110, 0, 0)
-    speedLabel.BackgroundTransparency = 1
-    speedLabel.Font = Enum.Font.Gotham
-    speedLabel.Text = "Spd: 25"
-    speedLabel.TextColor3 = THEME.TextDark
-    speedLabel.TextSize = 12
-    speedLabel.Parent = orbitParams
-    
-    -- Void Spam Section
-    local voidSection = Instance.new("Frame")
-    voidSection.Name = "VoidSection"
-    voidSection.Size = UDim2.new(1, 0, 0, 100)
-    voidSection.Position = UDim2.new(0, 0, 0, 110)
-    voidSection.BackgroundColor3 = THEME.Panel
-    voidSection.BorderSizePixel = 0
-    voidSection.Parent = contentFrame
-    
-    local voidCorner = addCorner(voidSection, 10)
-    local voidGradient = addGradient(voidSection, THEME.PanelLight, THEME.Panel, 180)
-    
-    -- Void Title
-    local voidTitle = Instance.new("TextLabel")
-    voidTitle.Name = "VoidTitle"
-    voidTitle.Size = UDim2.new(0, 100, 0, 30)
-    voidTitle.Position = UDim2.new(0, 15, 0, 10)
-    voidTitle.BackgroundTransparency = 1
-    voidTitle.Font = Enum.Font.Gotham
-    voidTitle.Text = "Void Spam"
-    voidTitle.TextColor3 = THEME.Text
-    voidTitle.TextSize = 16
-    voidTitle.TextXAlignment = Enum.TextXAlignment.Left
-    voidTitle.Parent = voidSection
-    
-    -- Void Status Label
-    local voidStatus = Instance.new("TextLabel")
-    voidStatus.Name = "VoidStatus"
-    voidStatus.Size = UDim2.new(0, 50, 0, 30)
-    voidStatus.Position = UDim2.new(1, -65, 0, 10)
-    voidStatus.BackgroundTransparency = 1
-    voidStatus.Font = Enum.Font.GothamBold
-    voidStatus.Text = "OFF"
-    voidStatus.TextColor3 = THEME.OffColor
-    voidStatus.TextSize = 16
-    voidStatus.Parent = voidSection
-    
-    -- Void Toggle Button
-    local voidToggle = Instance.new("TextButton")
-   
+    -- Add some visual effects
+    local
