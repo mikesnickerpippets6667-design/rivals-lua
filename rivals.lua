@@ -319,4 +319,4 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
-print("Loaded")
+print("Rivals Cheat Loaded")
