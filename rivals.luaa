@@ -528,3 +528,4 @@ end)
 
 kInput.FocusLost:Connect(function(enterPressed)
     if enterPressed then kBtn.MouseButton1Click:Fire() end
+end)
