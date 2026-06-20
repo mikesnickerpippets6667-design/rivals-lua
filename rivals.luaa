@@ -3,21 +3,20 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+
 local player = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
 
--- Wait for character
 if not player.Character then
     player.CharacterAdded:Wait()
 end
 
--- ===== CONFIG =====
+-- CONFIG
 local AIMBOT_KEYBIND = Enum.KeyCode.Q
-local AIMBOT_SMOOTHNESS = 0.08
-local AIMBOT_FOV = 300
 local RAGEBOT_KEYBIND = Enum.KeyCode.R
+local AIMBOT_SMOOTHNESS = 0.065
+local AIMBOT_FOV = 260
 
--- ===== PREMIUM THEME =====
 local THEME = {
     Background = Color3.fromRGB(5, 5, 8),
     Surface = Color3.fromRGB(15, 15, 22),
@@ -28,13 +27,12 @@ local THEME = {
     Success = Color3.fromRGB(0, 255, 150),
     Danger = Color3.fromRGB(255, 50, 80),
     Warning = Color3.fromRGB(255, 200, 50),
-    Gold = Color3.fromRGB(255, 215, 0),
     Text = Color3.fromRGB(255, 255, 255),
     TextDim = Color3.fromRGB(120, 120, 140),
     Rage = Color3.fromRGB(255, 0, 60),
 }
 
--- ===== HELPER FUNCTIONS (DEFINE FIRST) =====
+-- Helpers
 local function addCorner(parent, radius)
     local c = Instance.new("UICorner")
     c.CornerRadius = UDim.new(0, radius or 12)
@@ -66,458 +64,118 @@ local function addGlow(parent, color)
     return glow
 end
 
-local function wireButton(btn, baseColor)
-    local stroke = btn:FindFirstChildOfClass("UIStroke")
-    local originalSize = btn.Size
-    
-    btn.MouseEnter:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
-            BackgroundColor3 = baseColor:Lerp(Color3.fromRGB(255,255,255), 0.2),
-            Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset + 6, originalSize.Y.Scale, originalSize.Y.Offset + 6)
-        }):Play()
-        if stroke then
-            TweenService:Create(stroke, TweenInfo.new(0.25), {Transparency = 0, Thickness = 2.5}):Play()
-        end
-    end)
-    
-    btn.MouseLeave:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
-            BackgroundColor3 = baseColor,
-            Size = originalSize
-        }):Play()
-        if stroke then
-            TweenService:Create(stroke, TweenInfo.new(0.25), {Transparency = 0.3, Thickness = 1.5}):Play()
-        end
-    end)
-    
-    btn.MouseButton1Down:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.1), {
-            Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset - 4, originalSize.Y.Scale, originalSize.Y.Offset - 4)
-        }):Play()
-    end)
-    
-    btn.MouseButton1Up:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.1), {
-            Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset + 6, originalSize.Y.Scale, originalSize.Y.Offset + 6)
-        }):Play()
-    end)
-end
-
 local function makeDraggable(frame, dragHandle)
     local dragging = false
     local dragStart, startPos
-    
     dragHandle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             dragStart = Vector2.new(input.Position.X, input.Position.Y)
             startPos = frame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
         end
     end)
-    
     UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local currentPos = Vector2.new(input.Position.X, input.Position.Y)
-            local delta = currentPos - dragStart
-            frame.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = Vector2.new(input.Position.X, input.Position.Y) - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
 end
 
--- ScreenGui
+-- ScreenGui + FOV
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "VoidUltimate"
+screenGui.Name = "VoidUltimateRivals"
 screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- FOV Circle
 local fovCircle = Instance.new("Frame")
-fovCircle.Name = "FOVCircle"
-fovCircle.Size = UDim2.fromOffset(AIMBOT_FOV * 2, AIMBOT_FOV * 2)
+fovCircle.Size = UDim2.fromOffset(AIMBOT_FOV*2, AIMBOT_FOV*2)
 fovCircle.Position = UDim2.new(0.5, -AIMBOT_FOV, 0.5, -AIMBOT_FOV)
 fovCircle.BackgroundTransparency = 1
-fovCircle.BorderSizePixel = 0
 fovCircle.Visible = false
 fovCircle.Parent = screenGui
+addCorner(fovCircle, 999)
+local fovStroke = addStroke(fovCircle, THEME.Primary, 3)
 
-local fovCorner = Instance.new("UICorner")
-fovCorner.CornerRadius = UDim.new(1, 0)
-fovCorner.Parent = fovCircle
-
-local fovStroke = Instance.new("UIStroke")
-fovStroke.Color = THEME.Primary
-fovStroke.Thickness = 3
-fovStroke.Transparency = 0.3
-fovStroke.Parent = fovCircle
-
--- ===== KEYSTROKE UI =====
-local keystrokeUI = Instance.new("Frame")
-keystrokeUI.Name = "Keystrokes"
-keystrokeUI.Size = UDim2.fromOffset(200, 120)
-keystrokeUI.Position = UDim2.new(0, 20, 0.5, -60)
-keystrokeUI.BackgroundColor3 = THEME.Background
-keystrokeUI.BackgroundTransparency = 0.3
-keystrokeUI.BorderSizePixel = 0
-keystrokeUI.Visible = false
-keystrokeUI.Parent = screenGui
-addCorner(keystrokeUI, 12)
-addStroke(keystrokeUI, THEME.Primary, 1)
-
-local ksTitle = Instance.new("TextLabel")
-ksTitle.Size = UDim2.new(1, 0, 0, 20)
-ksTitle.BackgroundTransparency = 1
-ksTitle.Text = "KEYSTROKES"
-ksTitle.TextColor3 = THEME.Primary
-ksTitle.Font = Enum.Font.GothamBold
-ksTitle.TextSize = 10
-ksTitle.Parent = keystrokeUI
-
-local keysContainer = Instance.new("Frame")
-keysContainer.Size = UDim2.new(1, -10, 1, -25)
-keysContainer.Position = UDim2.fromOffset(5, 22)
-keysContainer.BackgroundTransparency = 1
-keysContainer.Parent = keystrokeUI
-
-local keyLabels = {}
-local keyPositions = {
-    W = {0.5, -25, 0, 0},
-    A = {0, 5, 0, 35},
-    S = {0.5, -25, 0, 35},
-    D = {1, -55, 0, 35},
-    Space = {0.5, -40, 0, 70},
-    Q = {0, 5, 0, 70},
-    R = {1, -55, 0, 70}
-}
-
-for key, pos in pairs(keyPositions) do
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.fromOffset(50, 30)
-    label.Position = UDim2.new(pos[1], pos[2], pos[3], pos[4])
-    label.BackgroundColor3 = THEME.Surface
-    label.Text = key == "Space" and "SPC" or key
-    label.TextColor3 = THEME.TextDim
-    label.Font = Enum.Font.GothamBold
-    label.TextSize = 12
-    label.Parent = keysContainer
-    addCorner(label, 6)
-    keyLabels[key] = label
-end
-
--- Keystroke detection
-UserInputService.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    local key = input.KeyCode.Name
-    if keyLabels[key] then
-        keyLabels[key].BackgroundColor3 = THEME.Primary
-        keyLabels[key].TextColor3 = THEME.Background
-    end
-    if input.KeyCode == Enum.KeyCode.Space and keyLabels["Space"] then
-        keyLabels["Space"].BackgroundColor3 = THEME.Primary
-        keyLabels["Space"].TextColor3 = THEME.Background
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input, gp)
-    local key = input.KeyCode.Name
-    if keyLabels[key] then
-        keyLabels[key].BackgroundColor3 = THEME.Surface
-        keyLabels[key].TextColor3 = THEME.TextDim
-    end
-    if input.KeyCode == Enum.KeyCode.Space and keyLabels["Space"] then
-        keyLabels["Space"].BackgroundColor3 = THEME.Surface
-        keyLabels["Space"].TextColor3 = THEME.TextDim
-    end
-end)
-
--- ===== REAL WORKING SCRIPTS =====
-local ScriptLibrary = {
-    {name = "Infinite Yield", game = "Universal", type = "Keyless", features = "Admin commands, fly, noclip, tools", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()"},
-    {name = "Dark Dex", game = "Universal", type = "Keyless", features = "Explorer, remote spy, script dumper", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/Babyhamsta/RBLX_DEX/main/dex_v2.lua'))()"},
-    {name = "Owl Hub", game = "Multiple FPS", type = "Keyless", features = "Aimbot, ESP, wallbang for 40+ games", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/CriShoux/OwlHub/master/OwlHub.txt'))()"},
-    {name = "Vape V4", game = "Bedwars", type = "Keyless", features = "Kill aura, scaffold, velocity, reach", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/7GrandDadPGN/VapeV4ForRoblox/main/NewMainScript.lua', true))()"},
-    {name = "Redz Hub", game = "Fisch", type = "Keyless", features = "Auto fish, auto sell, best rod finder", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/REDzHUB/REDzHUB/main/REDzHUB'))()"},
-    {name = "Zen Hub", game = "Blox Fruits", type = "Keyless", features = "Auto farm, raid, mastery, fruit sniper", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/ZenHubThe/zenhub/main/zenhub'))()"},
-    {name = "HaruHub", game = "Multiple", type = "Keyless", features = "35+ games support, daily updates", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/HaruHub/haru/main/loader'))()"},
-    {name = "SystemBroken", game = "Ragdoll Engine", type = "Keyless", features = "Push aura, fling, anti fling, bypass", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/H20CalibreYT/SystemBroken/mainn'))()"},
-    {name = "Phantom X", game = "Multiple", type = "Keyless", features = "Universal admin, trolling, tools", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/phantomx/phantomx/main/phantomx.lua'))()"},
-    {name = "CMD-X", game = "Universal", type = "Keyless", features = "Admin commands, server management", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/CMD-X/CMD-X/master/cmd-x'))()"},
-    {name = "Kronos", game = "MM2", type = "Keyless", features = "ESP, sheriff aimbot, murderer ESP", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/Kronos/kronos/main/mm2.lua'))()"},
-    {name = "Eclipse", game = "Doors", type = "Keyless", features = "ESP, god mode, auto loot, no screech", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/Eclipse/eclipse/main/doors.lua'))()"},
-    {name = "Pet Sim X", game = "Pet Simulator X", type = "Keyless", features = "Auto farm, auto hatch, dupe", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/petsimx/petsimx/main/script.lua'))()"},
-    {name = "Anime Adventures", game = "Anime Adventures", type = "Keyless", features = "Auto farm, summon, macro, story", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/aa/adventures/main/script.lua'))()"},
-    {name = "Shindo Life", game = "Shindo Life", type = "Keyless", features = "Auto farm, spin, rank up fast", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/shindo/shindo/main/script.lua'))()"},
-    {name = "Jailbreak", game = "Jailbreak", type = "Keyless", features = "Auto rob, ESP, car speed, fly", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/jailbreak/jailbreak/main/script.lua'))()"},
-    {name = "Brookhaven", game = "Brookhaven RP", type = "Keyless", features = "Admin, house bypass, trolling", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/brookhaven/brookhaven/main/script.lua'))()"},
-    {name = "Tower of Hell", game = "Tower of Hell", type = "Keyless", features = "Auto win, god mode, anti cheat bypass", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/toh/toh/main/script.lua'))()"},
-    {name = "Evade", game = "Evade", type = "Keyless", features = "Auto farm, ESP, auto revive", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/evade/evade/main/script.lua'))()"},
-    {name = "Slap Battles", game = "Slap Battles", type = "Keyless", features = "Auto slap, god mode, anti ragdoll", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/slap/slap/main/script.lua'))()"},
-    {name = "Lumber Tycoon 2", game = "Lumber Tycoon 2", type = "Keyless", features = "Auto chop, auto sell, dupe items", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/lt2/lt2/main/script.lua'))()"},
-    {name = "Bee Swarm", game = "Bee Swarm Simulator", type = "Keyless", features = "Auto farm, quest, auto hatch", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/bss/bss/main/script.lua'))()"},
-    {name = "King Legacy", game = "King Legacy", type = "Keyless", features = "Auto farm, quest, stats, raid", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/kl/kl/main/script.lua'))()"},
-    {name = "Deepwoken", game = "Deepwoken", type = "Keyless", features = "ESP, auto parry, mob farm", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/deepwoken/deepwoken/main/script.lua'))()"},
-    {name = "Blade Ball", game = "Blade Ball", type = "Keyless", features = "Auto parry, spam, anti cheat bypass", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/r4mpage4/4R4mpageHub/main/FixedAntiCheat.lua'))()"},
-}
-
--- ===== CRAZY VOIDSPAM =====
+-- Variables
+local aimbotActive = false
+local ragebotActive = false
 local voidspamming = false
-local voidspamConn = nil
-local bodyVel = nil
-local bodyGyro = nil
-local screenShakeConn = nil
+local orbiting = false
+local aimbotTarget = nil
 
 local function getRoot()
     local char = player.Character
-    if not char then return nil end
-    return char:FindFirstChild("HumanoidRootPart")
+    return char and char:FindFirstChild("HumanoidRootPart")
 end
 
-local function getHumanoid()
-    local char = player.Character
-    if not char then return nil end
-    return char:FindFirstChild("Humanoid")
-end
-
-local function createBodyVelocity()
-    if bodyVel then bodyVel:Destroy() end
-    if bodyGyro then bodyGyro:Destroy() end
-    local root = getRoot()
-    if not root then return end
-    
-    bodyVel = Instance.new("BodyVelocity")
-    bodyVel.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bodyVel.Velocity = Vector3.zero
-    bodyVel.P = 999999
-    bodyVel.Parent = root
-    
-    bodyGyro = Instance.new("BodyGyro")
-    bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    bodyGyro.P = 999999
-    bodyGyro.Parent = root
-end
-
-local function destroyBodyVelocity()
-    if bodyVel then
-        bodyVel:Destroy()
-        bodyVel = nil
-    end
-    if bodyGyro then
-        bodyGyro:Destroy()
-        bodyGyro = nil
-    end
-end
-
--- Screen shake effect
-local function startScreenShake()
-    screenShakeConn = RunService.RenderStepped:Connect(function()
-        if not voidspamming then return end
-        camera.CFrame = camera.CFrame * CFrame.new(
-            math.random(-5, 5) / 10,
-            math.random(-5, 5) / 10,
-            math.random(-5, 5) / 10
-        ) * CFrame.Angles(
-            math.rad(math.random(-3, 3)),
-            math.rad(math.random(-3, 3)),
-            math.rad(math.random(-3, 3))
-        )
-    end)
-end
-
-local function stopScreenShake()
-    if screenShakeConn then
-        screenShakeConn:Disconnect()
-        screenShakeConn = nil
-    end
-end
-
-local function doCrazyVoidspam()
-    local root = getRoot()
-    local humanoid = getHumanoid()
-    if not root or not humanoid then return end
-    
-    -- Disable all states
-    for _, state in ipairs(Enum.HumanoidStateType:GetEnumItems()) do
-        humanoid:SetStateEnabled(state, false)
-    end
-    
-    -- Extreme random position
-    local crazyOffset = Vector3.new(
-        math.random(-999999, 999999),
-        math.random(-999999, 999999),
-        math.random(-999999, 999999)
-    )
-    root.CFrame = root.CFrame + crazyOffset
-    
-    -- Extreme velocity
-    root.AssemblyLinearVelocity = Vector3.new(
-        math.random(-9999999, 9999999),
-        math.random(-9999999, 9999999),
-        math.random(-9999999, 9999999)
-    )
-    
-    -- Crazy rotation
-    root.AssemblyAngularVelocity = Vector3.new(
-        math.random(-999999, 999999),
-        math.random(-999999, 999999),
-        math.random(-999999, 999999)
-    )
-    
-    -- Random orientation
-    root.CFrame = CFrame.new(root.Position) * CFrame.Angles(
-        math.random(-100000, 100000),
-        math.random(-100000, 100000),
-        math.random(-100000, 100000)
-    )
-    
-    if bodyVel then
-        bodyVel.Velocity = Vector3.new(
-            math.random(-999999, 999999),
-            math.random(-999999, 999999),
-            math.random(-999999, 999999)
-        )
-    end
-    
-    if bodyGyro then
-        bodyGyro.CFrame = CFrame.Angles(
-            math.random(-100000, 100000),
-            math.random(-100000, 100000),
-            math.random(-100000, 100000)
-        )
-    end
-    
-    -- Random size changes
-    for _, part in ipairs(player.Character:GetDescendants()) do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-            part.Size = Vector3.new(
-                math.random(0.1, 10),
-                math.random(0.1, 10),
-                math.random(0.1, 10)
-            )
-        end
-    end
-end
-
+-- Improved Voidspam
+local voidspamConn
 local function startVoidspam()
     if voidspamming then return end
     voidspamming = true
-    createBodyVelocity()
-    startScreenShake()
-    
     voidspamConn = RunService.Heartbeat:Connect(function()
-        if not voidspamming then return end
-        doCrazyVoidspam()
+        local root = getRoot()
+        if not root then return end
+        root.AssemblyLinearVelocity = Vector3.new(math.random(-140,140), math.random(-35,95), math.random(-140,140))
+        root.AssemblyAngularVelocity = Vector3.new(math.random(-480,480), math.random(-720,720), math.random(-480,480))
+        if math.random(1,5) == 1 then
+            root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(math.random(-160,160)), 0)
+        end
     end)
 end
 
 local function stopVoidspam()
     voidspamming = false
-    if voidspamConn then
-        voidspamConn:Disconnect()
-        voidspamConn = nil
-    end
-    stopScreenShake()
-    destroyBodyVelocity()
-    
+    if voidspamConn then voidspamConn:Disconnect() end
     local root = getRoot()
     if root then
         root.AssemblyLinearVelocity = Vector3.zero
         root.AssemblyAngularVelocity = Vector3.zero
     end
-    
-    -- Reset sizes
-    for _, part in ipairs(player.Character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            if part.Name == "Head" then
-                part.Size = Vector3.new(2, 1, 1)
-            elseif part.Name == "Torso" or part.Name == "UpperTorso" then
-                part.Size = Vector3.new(2, 2, 1)
-            elseif part.Name == "Left Arm" or part.Name == "Right Arm" or part.Name == "LeftUpperArm" or part.Name == "RightUpperArm" then
-                part.Size = Vector3.new(1, 2, 1)
-            elseif part.Name == "Left Leg" or part.Name == "Right Leg" or part.Name == "LeftUpperLeg" or part.Name == "RightUpperLeg" then
-                part.Size = Vector3.new(1, 2, 1)
-            elseif part.Name == "HumanoidRootPart" then
-                part.Size = Vector3.new(2, 2, 1)
-            end
-        end
-    end
-    
-    local humanoid = getHumanoid()
-    if humanoid then
-        for _, state in ipairs(Enum.HumanoidStateType:GetEnumItems()) do
-            humanoid:SetStateEnabled(state, true)
-        end
-    end
 end
 
--- ===== ORBIT =====
-local orbiting = false
-local orbitConn = nil
-local orbitAngle = 0
-
-local function getNearestRoot()
-    local myRoot = getRoot()
-    if not myRoot then return nil end
-    local closest, dist = nil, math.huge
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player and p.Character then
-            local theirRoot = p.Character:FindFirstChild("HumanoidRootPart")
-            if theirRoot then
-                local d = (theirRoot.Position - myRoot.Position).Magnitude
-                if d < dist then
-                    dist = d
-                    closest = theirRoot
-                end
-            end
-        end
-    end
-    return closest
-end
-
+-- Improved Orbit
+local orbitConn, orbitAngle = nil, 0
 local function startOrbit()
     if orbiting then return end
     orbiting = true
     orbitConn = RunService.Heartbeat:Connect(function(dt)
-        local myRoot = getRoot()
-        local target = getNearestRoot()
-        if not myRoot or not target then return end
-        orbitAngle = orbitAngle + 20 * dt
-        local offset = Vector3.new(math.cos(orbitAngle) * 6, 2, math.sin(orbitAngle) * 6)
-        myRoot.CFrame = CFrame.lookAt(target.Position + offset, target.Position)
-        myRoot.AssemblyLinearVelocity = Vector3.zero
+        local root = getRoot()
+        local target = nil
+        local minDist = math.huge
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and p.Character then
+                local tr = p.Character:FindFirstChild("HumanoidRootPart")
+                if tr then
+                    local d = (tr.Position - (root and root.Position or Vector3.zero)).Magnitude
+                    if d < minDist then minDist, target = d, tr end
+                end
+            end
+        end
+        if root and target then
+            orbitAngle += 38 * dt
+            local radius = 8 + math.sin(orbitAngle * 1.8) * 3
+            local height = 5 + math.cos(orbitAngle * 1.2) * 2.5
+            local offset = Vector3.new(math.cos(orbitAngle) * radius, height, math.sin(orbitAngle) * radius)
+            root.CFrame = CFrame.lookAt(target.Position + offset, target.Position)
+        end
     end)
 end
 
 local function stopOrbit()
     orbiting = false
-    if orbitConn then
-        orbitConn:Disconnect()
-        orbitConn = nil
-    end
+    if orbitConn then orbitConn:Disconnect() end
 end
 
--- ===== AIMBOT & RAGEBOT =====
-local aimbotActive = false
-local ragebotActive = false
-local aimbotTarget = nil
-
+-- Prediction Aimbot
 local function getClosestPlayer()
     local closest, shortest = nil, AIMBOT_FOV
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= player and p.Character then
             local head = p.Character:FindFirstChild("Head")
-            local humanoid = p.Character:FindFirstChild("Humanoid")
-            if head and humanoid and humanoid.Health > 0 then
+            local hum = p.Character:FindFirstChild("Humanoid")
+            if head and hum and hum.Health > 0 then
                 local pos, onScreen = camera:WorldToViewportPoint(head.Position)
                 if onScreen then
                     local dist = (Vector2.new(pos.X, pos.Y) - UserInputService:GetMouseLocation()).Magnitude
@@ -532,45 +190,41 @@ local function getClosestPlayer()
     return closest
 end
 
--- Ragebot features
-local function ragebotFeatures()
-    if not ragebotActive then return end
-    
-    local target = getClosestPlayer()
-    if target and target.Character then
-        local head = target.Character:FindFirstChild("Head")
-        if head then
-            -- Instant snap
-            camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
-            
-            -- Rapid fire aim jitter
-            for i = 1, 5 do
-                camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position + Vector3.new(math.random(-1,1), math.random(-1,1), math.random(-1,1)))
-                task.wait(0.01)
-            end
-        end
+local function getPredictedPos(target)
+    if not target or not target.Character then return nil end
+    local head = target.Character:FindFirstChild("Head")
+    local root = target.Character:FindFirstChild("HumanoidRootPart")
+    if not head then return nil end
+    if root then
+        local vel = root.AssemblyLinearVelocity
+        return head.Position + vel * 0.042
     end
+    return head.Position
 end
 
 RunService.RenderStepped:Connect(function()
     if ragebotActive then
-        ragebotFeatures()
+        local target = getClosestPlayer()
+        if target then
+            local pred = getPredictedPos(target)
+            if pred then camera.CFrame = CFrame.new(camera.CFrame.Position, pred) end
+        end
         fovCircle.Visible = true
         fovCircle.BackgroundColor3 = THEME.Rage
         fovStroke.Color = THEME.Rage
     elseif aimbotActive then
-        if not aimbotTarget or not aimbotTarget.Character then
+        if not aimbotTarget or not aimbotTarget.Character or (aimbotTarget.Character:FindFirstChild("Humanoid") and aimbotTarget.Character.Humanoid.Health <= 0) then
             aimbotTarget = getClosestPlayer()
         end
-        if aimbotTarget and aimbotTarget.Character then
-            local head = aimbotTarget.Character:FindFirstChild("Head")
-            if head then
-                local targetCF = CFrame.new(camera.CFrame.Position, head.Position)
+        if aimbotTarget then
+            local pred = getPredictedPos(aimbotTarget)
+            if pred then
+                local targetCF = CFrame.new(camera.CFrame.Position, pred)
                 camera.CFrame = camera.CFrame:Lerp(targetCF, 1 - AIMBOT_SMOOTHNESS)
             end
         end
         fovCircle.Visible = true
-        fovCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
+        fovCircle.BackgroundColor3 = Color3.fromRGB(0,255,255)
         fovStroke.Color = THEME.Primary
     else
         aimbotTarget = nil
@@ -589,73 +243,45 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- ===== MAIN UI WITH TABS =====
+-- UI
 local mainUI = nil
-local currentTab = "Scripts"
-
 local function buildMainUI()
     if mainUI then mainUI:Destroy() end
-    
     mainUI = Instance.new("Frame")
-    mainUI.Size = UDim2.fromOffset(500, 650)
-    mainUI.Position = UDim2.new(0.5, -250, 0.5, -325)
+    mainUI.Size = UDim2.fromOffset(520, 660)
+    mainUI.Position = UDim2.new(0.5, -260, 0.5, -330)
     mainUI.BackgroundColor3 = THEME.Background
-    mainUI.BorderSizePixel = 0
     mainUI.Parent = screenGui
     addCorner(mainUI, 20)
     addStroke(mainUI, THEME.Primary, 2)
-    
-    -- Glow
-    local glow = addGlow(mainUI, THEME.Primary)
-    
-    -- Header with gradient animation
+    addGlow(mainUI, THEME.Primary)
+
     local header = Instance.new("Frame")
     header.Size = UDim2.new(1, 0, 0, 100)
     header.BackgroundColor3 = THEME.Surface
-    header.BorderSizePixel = 0
     header.Parent = mainUI
     addCorner(header, 20)
-    
-    local headerGradient = Instance.new("UIGradient")
-    headerGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, THEME.Primary),
-        ColorSequenceKeypoint.new(0.5, THEME.Secondary),
-        ColorSequenceKeypoint.new(1, THEME.Accent)
-    })
-    headerGradient.Rotation = 0
-    headerGradient.Parent = header
-    
-    -- Animate gradient
-    task.spawn(function()
-        while mainUI and mainUI.Parent do
-            TweenService:Create(headerGradient, TweenInfo.new(2, Enum.EasingStyle.Linear), {
-                Rotation = headerGradient.Rotation + 180
-            }):Play()
-            task.wait(2)
-        end
-    end)
-    
+
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, -100, 0, 40)
-    title.Position = UDim2.fromOffset(20, 10)
+    title.Position = UDim2.fromOffset(20, 15)
     title.BackgroundTransparency = 1
     title.Text = "⚡ VOID ULTIMATE"
     title.TextColor3 = THEME.Text
     title.Font = Enum.Font.GothamBlack
-    title.TextSize = 28
+    title.TextSize = 29
     title.Parent = header
-    
+
     local subtitle = Instance.new("TextLabel")
     subtitle.Size = UDim2.new(1, -100, 0, 20)
-    subtitle.Position = UDim2.fromOffset(20, 50)
+    subtitle.Position = UDim2.fromOffset(20, 55)
     subtitle.BackgroundTransparency = 1
-    subtitle.Text = "ScriptBlox Edition • Ragebot • Keystrokes"
-    subtitle.TextColor3 = THEME.Text
+    subtitle.Text = "Rivals Edition • Prediction • Desync"
+    subtitle.TextColor3 = THEME.TextDim
     subtitle.Font = Enum.Font.Gotham
-    subtitle.TextSize = 12
+    subtitle.TextSize = 13
     subtitle.Parent = header
-    
-    -- Close button
+
     local closeBtn = Instance.new("TextButton")
     closeBtn.Size = UDim2.fromOffset(40, 40)
     closeBtn.Position = UDim2.new(1, -50, 0, 10)
@@ -663,10 +289,10 @@ local function buildMainUI()
     closeBtn.Text = "×"
     closeBtn.TextColor3 = THEME.Text
     closeBtn.Font = Enum.Font.GothamBlack
-    closeBtn.TextSize = 28
+    closeBtn.TextSize = 30
     closeBtn.Parent = header
     addCorner(closeBtn, 10)
-    
+
     closeBtn.MouseButton1Click:Connect(function()
         stopVoidspam()
         stopOrbit()
@@ -674,1454 +300,56 @@ local function buildMainUI()
         ragebotActive = false
         mainUI:Destroy()
     end)
-    
-    -- Tab buttons
-    local tabContainer = Instance.new("Frame")
-    tabContainer.Size = UDim2.new(1, -40, 0, 40)
-    tabContainer.Position = UDim2.fromOffset(20, 75)
-    tabContainer.BackgroundTransparency = 1
-    tabContainer.Parent = header
-    
-    local tabLayout = Instance.new("UIListLayout")
-    tabLayout.FillDirection = Enum.FillDirection.Horizontal
-    tabLayout.Padding = UDim.new(0, 10)
-    tabLayout.Parent = tabContainer
-    
-    local scriptsTab = Instance.new("TextButton")
-    scriptsTab.Size = UDim2.new(0.5, -5, 1, 0)
-    scriptsTab.BackgroundColor3 = THEME.Primary
-    scriptsTab.Text = "📜 SCRIPTS"
-    scriptsTab.TextColor3 = THEME.Background
-    scriptsTab.Font = Enum.Font.GothamBold
-    scriptsTab.TextSize = 14
-    scriptsTab.Parent = tabContainer
-    addCorner(scriptsTab, 8)
-    
-    local settingsTab = Instance.new("TextButton")
-    settingsTab.Size = UDim2.new(0.5, -5, 1, 0)
-    settingsTab.BackgroundColor3 = THEME.SurfaceLight
-    settingsTab.Text = "⚙️ SETTINGS"
-    settingsTab.TextColor3 = THEME.Text
-    settingsTab.Font = Enum.Font.GothamBold
-    settingsTab.TextSize = 14
-    settingsTab.Parent = tabContainer
-    addCorner(settingsTab, 8)
-    
-    -- Content container
-    local content = Instance.new("Frame")
-    content.Size = UDim2.new(1, -30, 1, -120)
-    content.Position = UDim2.fromOffset(15, 110)
-    content.BackgroundTransparency = 1
-    content.Parent = mainUI
-    
-    -- SCRIPTS TAB CONTENT
-    local scriptsContent = Instance.new("Frame")
-    scriptsContent.Size = UDim2.new(1, 0, 1, 0)
-    scriptsContent.BackgroundTransparency = 1
-    scriptsContent.Visible = true
-    scriptsContent.Parent = content
-    
-    -- Search
-    local searchBox = Instance.new("TextBox")
-    searchBox.Size = UDim2.new(1, 0, 0, 35)
-    searchBox.BackgroundColor3 = THEME.Surface
-    searchBox.Text = ""
-    searchBox.PlaceholderText = "🔍 Search 25+ ScriptBlox scripts..."
-    searchBox.TextColor3 = THEME.Text
-    searchBox.PlaceholderColor3 = THEME.TextDim
-    searchBox.Font = Enum.Font.Gotham
-    searchBox.TextSize = 13
-    searchBox.Parent = scriptsContent
-    addCorner(searchBox, 8)
-    addStroke(searchBox, THEME.SurfaceLight)
-    
-    -- Script list
-    local scrollFrame = Instance.new("ScrollingFrame")
-    scrollFrame.Size = UDim2.new(1, 0, 1, -45)
-    scrollFrame.Position = UDim2.fromOffset(0, 45)
-    scrollFrame.BackgroundColor3 = THEME.Surface
-    scrollFrame.BorderSizePixel = 0
-    scrollFrame.ScrollBarThickness = 6
-    scrollFrame.ScrollBarImageColor3 = THEME.Primary
-    scrollFrame.Parent = scriptsContent
-    addCorner(scrollFrame, 12)
-    
-    local scriptListLayout = Instance.new("UIListLayout")
-    scriptListLayout.Padding = UDim.new(0, 8)
-    scriptListLayout.Parent = scrollFrame
-    
-    -- Populate scripts
-    local function populateScripts(filter)
-        for _, child in ipairs(scrollFrame:GetChildren()) do
-            if child:IsA("Frame") then child:Destroy() end
-        end
-        
-        for _, scriptData in ipairs(ScriptLibrary) do
-            if filter == "" or 
-                scriptData.name:lower():find(filter:lower()) or 
-                scriptData.game:lower():find(filter:lower()) then
-                
-                local card = Instance.new("Frame")
-                card.Size = UDim2.new(1, -10, 0, 70)
-                card.BackgroundColor3 = THEME.SurfaceLight
-                card.Parent = scrollFrame
-                addCorner(card, 10)
-                
-                local cardStroke = addStroke(card, THEME.Primary, 1)
-                cardStroke.Transparency = 0.5
-                
-                local name = Instance.new("TextLabel")
-                name.Size = UDim2.new(1, -80, 0, 22)
-                name.Position = UDim2.fromOffset(10, 8)
-                name.BackgroundTransparency = 1
-                name.Text = scriptData.name
-                name.TextColor3 = THEME.Primary
-                name.Font = Enum.Font.GothamBold
-                name.TextSize = 15
-                name.TextXAlignment = Enum.TextXAlignment.Left
-                name.Parent = card
-                
-                local game = Instance.new("TextLabel")
-                game.Size = UDim2.new(0.5, -10, 0, 18)
-                game.Position = UDim2.fromOffset(10, 32)
-                game.BackgroundTransparency = 1
-                game.Text = "🎮 " .. scriptData.game
-                game.TextColor3 = THEME.Text
-                game.Font = Enum.Font.Gotham
-                game.TextSize = 11
-                game.TextXAlignment = Enum.TextXAlignment.Left
-                game.Parent = card
-                
-                local type = Instance.new("TextLabel")
-                type.Size = UDim2.new(0.3, 0, 0, 18)
-                type.Position = UDim2.new(0.6, 0, 0, 32)
-                type.BackgroundTransparency = 1
-                type.Text = scriptData.type == "Keyless" and "✅ " .. scriptData.type or "🔑 " .. scriptData.type
-                type.TextColor3 = scriptData.type == "Keyless" and THEME.Success or THEME.Warning
-                type.Font = Enum.Font.GothamBold
-                type.TextSize = 11
-                type.TextXAlignment = Enum.TextXAlignment.Right
-                type.Parent = card
-                
-                local features = Instance.new("TextLabel")
-                features.Size = UDim2.new(1, -80, 0, 16)
-                features.Position = UDim2.fromOffset(10, 50)
-                features.BackgroundTransparency = 1
-                features.Text = scriptData.features
-                features.TextColor3 = THEME.TextDim
-                features.Font = Enum.Font.Gotham
-                features.TextSize = 10
-                features.TextXAlignment = Enum.TextXAlignment.Left
-                features.TextTruncate = Enum.TextTruncate.AtEnd
-                features.Parent = card
-                
-                local execBtn = Instance.new("TextButton")
-                execBtn.Size = UDim2.fromOffset(60, 50)
-                execBtn.Position = UDim2.new(1, -70, 0.5, -25)
-                execBtn.BackgroundColor3 = THEME.Success
-                execBtn.Text = "▶"
-                execBtn.TextColor3 = THEME.Text
-                execBtn.Font = Enum.Font.GothamBlack
-                execBtn.TextSize = 20
-                execBtn.Parent = card
-                addCorner(execBtn, 8)
-                
-                execBtn.MouseButton1Click:Connect(function()
-                    local success, err = pcall(function()
-                        local func = loadstring(scriptData.code)
-                        if func then func() end
-                    end)
-                    if not success then
-                        warn("Script Error: " .. tostring(err))
-                    end
-                end)
-                
-                -- Hover effects
-                local function onHover()
-                    TweenService:Create(card, TweenInfo.new(0.2), {BackgroundColor3 = THEME.Surface}):Play()
-                end
-                local function onLeave()
-                    TweenService:Create(card, TweenInfo.new(0.2), {BackgroundColor3 = THEME.SurfaceLight}):Play()
-                end
-                
-                card.MouseEnter:Connect(onHover)
-                card.MouseLeave:Connect(onLeave)
-            end
-        end
-        
-        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #scrollFrame:GetChildren() * 78)
-    end
-    
-    searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-        populateScripts(searchBox.Text)
-    end)
-    
-    populateScripts("")
-    
-    -- SETTINGS TAB CONTENT
-    local settingsContent = Instance.new("Frame")
-    settingsContent.Size = UDim2.new(1, 0, 1, 0)
-    settingsContent.BackgroundTransparency = 1
-    settingsContent.Visible = false
-    settingsContent.Parent = content
-    
-    local settingsLayout = Instance.new("UIListLayout")
-    settingsLayout.Padding = UDim.new(0, 12)
-    settingsLayout.Parent = settingsContent
-    
-    -- Voidspam button
+
     local voidspamBtn = Instance.new("TextButton")
-    voidspamBtn.Size = UDim2.new(1, 0, 0, 60)
+    voidspamBtn.Size = UDim2.new(1, -40, 0, 60)
+    voidspamBtn.Position = UDim2.fromOffset(20, 130)
     voidspamBtn.BackgroundColor3 = THEME.Danger
     voidspamBtn.Text = "🌀 VOIDSPAM: OFF"
     voidspamBtn.TextColor3 = THEME.Text
     voidspamBtn.Font = Enum.Font.GothamBlack
     voidspamBtn.TextSize = 18
-    voidspamBtn.Parent = settingsContent
+    voidspamBtn.Parent = mainUI
     addCorner(voidspamBtn, 12)
-    addGlow(voidspamBtn, THEME.Danger)
-    addStroke(voidspamBtn, THEME.Danger, 2)
-    
-    -- Orbit button
+
     local orbitBtn = Instance.new("TextButton")
-    orbitBtn.Size = UDim2.new(1, 0, 0, 50)
+    orbitBtn.Size = UDim2.new(1, -40, 0, 55)
+    orbitBtn.Position = UDim2.fromOffset(20, 200)
     orbitBtn.BackgroundColor3 = THEME.Warning
     orbitBtn.Text = "🐚 ORBIT: OFF"
     orbitBtn.TextColor3 = THEME.Text
     orbitBtn.Font = Enum.Font.GothamBold
-    orbitBtn.TextSize = 16
-    orbitBtn.Parent = settingsContent
+    orbitBtn.TextSize = 17
+    orbitBtn.Parent = mainUI
     addCorner(orbitBtn, 12)
-    addStroke(orbitBtn, THEME.Warning, 2)
-    
-    -- Aimbot button
-    local aimbotBtn = Instance.new("TextButton")
-    aimbotBtn.Size = UDim2.new(1, 0, 0, 50)
-    aimbotBtn.BackgroundColor3 = THEME.Primary
-    aimbotBtn.Text = "🎯 AIMBOT: OFF"
-    aimbotBtn.TextColor3 = THEME.Text
-    aimbotBtn.Font = Enum.Font.GothamBold
-    aimbotBtn.TextSize = 16
-    aimbotBtn.Parent = settingsContent
-    addCorner(aimbotBtn, 12)
-    addStroke(aimbotBtn, THEME.Primary, 2)
-    
-    -- Ragebot button
-    local ragebotBtn = Instance.new("TextButton")
-    ragebotBtn.Size = UDim2.new(1, 0, 0, 60)
-    ragebotBtn.BackgroundColor3 = THEME.Rage
-    ragebotBtn.Text = "🔥 RAGEBOT: OFF"
-    ragebotBtn.TextColor3 = THEME.Text
-    ragebotBtn.Font = Enum.Font.GothamBlack
-    ragebotBtn.TextSize = 18
-    ragebotBtn.Parent = settingsContent
-    addCorner(ragebotBtn, 12)
-    addGlow(ragebotBtn, THEME.Rage)
-    addStroke(ragebotBtn, THEME.Rage, 2)
-    
-    -- Keystrokes toggle
-    local ksBtn = Instance.new("TextButton")
-    ksBtn.Size = UDim2.new(1, 0, 0, 50)
-    ksBtn.BackgroundColor3 = THEME.Secondary
-    ksBtn.Text = "⌨️ KEYSTROKES: OFF"
-    ksBtn.TextColor3 = THEME.Text
-    ksBtn.Font = Enum.Font.GothamBold
-    ksBtn.TextSize = 16
-    ksBtn.Parent = settingsContent
-    addCorner(ksBtn, 12)
-    addStroke(ksBtn, THEME.Secondary, 2)
-    
-    -- Status label
-    local status = Instance.new("TextLabel")
-    status.Size = UDim2.new(1, 0, 0, 30)
-    status.BackgroundTransparency = 1
-    status.Text = "✅ Ready"
-    status.TextColor3 = THEME.Success
-    status.Font = Enum.Font.GothamBold
-    status.TextSize = 14
-    status.Parent = settingsContent
-    
-    -- Keybinds info
-    local keybinds = Instance.new("TextLabel")
-    keybinds.Size = UDim2.new(1, 0, 0, 60)
-    keybinds.BackgroundTransparency = 1
-    keybinds.Text = "KEYBINDS:\nQ = Aimbot Toggle\nR = Ragebot Toggle"
-    keybinds.TextColor3 = THEME.TextDim
-    keybinds.Font = Enum.Font.Gotham
-    keybinds.TextSize = 11
-    keybinds.TextWrapped = true
-    keybinds.Parent = settingsContent
-    
-    -- Button connections
+
     voidspamBtn.MouseButton1Click:Connect(function()
         if voidspamming then
             stopVoidspam()
             voidspamBtn.Text = "🌀 VOIDSPAM: OFF"
             voidspamBtn.BackgroundColor3 = THEME.Danger
-            status.Text = "Voidspam Stopped"
-            status.TextColor3 = THEME.Danger
         else
-            stopOrbit()
-            orbitBtn.Text = "🐚 ORBIT: OFF"
             startVoidspam()
             voidspamBtn.Text = "🌀 VOIDSPAM: ON 🔥"
             voidspamBtn.BackgroundColor3 = THEME.Success
-            status.Text = "VOIDSPAM ACTIVE - CRAZY MODE"
-            status.TextColor3 = THEME.Rage
         end
     end)
-    
+
     orbitBtn.MouseButton1Click:Connect(function()
         if orbiting then
             stopOrbit()
             orbitBtn.Text = "🐚 ORBIT: OFF"
-            status.Text = "Orbit Stopped"
         else
-            stopVoidspam()
-            voidspamBtn.Text = "🌀 VOIDSPAM: OFF"
-            voidspamBtn.BackgroundColor3 = THEME.Danger
             startOrbit()
             orbitBtn.Text = "🐚 ORBIT: ON"
-            status.Text = "Orbit Active"
         end
     end)
-    
-    aimbotBtn.MouseButton1Click:Connect(function()
-        aimbotActive = not aimbotActive
-        ragebotActive = false
-        ragebotBtn.Text = "🔥 RAGEBOT: OFF"
-        ragebotBtn.BackgroundColor3 = THEME.Rage
-        
-        if aimbotActive then
-            aimbotBtn.Text = "🎯 AIMBOT: ON"
-            aimbotBtn.BackgroundColor3 = THEME.Success
-            fovCircle.Visible = true
-            status.Text = "Aimbot Active"
-        else
-            aimbotBtn.Text = "🎯 AIMBOT: OFF"
-            aimbotBtn.BackgroundColor3 = THEME.Primary
-            fovCircle.Visible = false
-            status.Text = "Aimbot Off"
-        end
-    end)
-    
-    ragebotBtn.MouseButton1Click:Connect(function()
-        ragebotActive = not ragebotActive
-        aimbotActive = false
-        aimbotBtn.Text = "🎯 AIMBOT: OFF"
-        aimbotBtn.BackgroundColor3 = THEME.Primary
-        
-        if ragebotActive then
-            ragebotBtn.Text = "🔥 RAGEBOT: ON ⚡"
-            ragebotBtn.BackgroundColor3 = THEME.Success
-            fovCircle.Visible = true
-            status.Text = "RAGEBOT ACTIVE - DESTROY"
-            status.TextColor3 = THEME.Rage
-        else
-            ragebotBtn.Text = "🔥 RAGEBOT: OFF"
-            ragebotBtn.BackgroundColor3 = THEME.Rage
-            fovCircle.Visible = false
-            status.Text = "Ragebot Off"
-        end
-    end)
-    
-    ksBtn.MouseButton1Click:Connect(function()
-        keystrokeUI.Visible = not keystrokeUI.Visible
-        if keystrokeUI.Visible then
-            ksBtn.Text = "⌨️ KEYSTROKES: ON"
-            ksBtn.BackgroundColor3 = THEME.Success
-        else
-            ksBtn.Text = "⌨️ KEYSTROKES: OFF"
-            ksBtn.BackgroundColor3 = THEME.Secondary
-        end
-    end)
-    
-    -- Tab switching
-    scriptsTab.MouseButton1Click:Connect(function()
-        currentTab = "Scripts"
-        scriptsContent.Visible = true
-        settingsContent.Visible = false
-        scriptsTab.BackgroundColor3 = THEME.Primary
-        scriptsTab.TextColor3 = THEME.Background
-        settingsTab.BackgroundColor3 = THEME.SurfaceLight
-        settingsTab.TextColor3 = THEME.Text
-    end)
-    
-    settingsTab.MouseButton1Click:Connect(function()
-        currentTab = "Settings"
-        scriptsContent.Visible = false
-        settingsContent.Visible = true
-        settingsTab.BackgroundColor3 = THEME.Primary
-        settingsTab.TextColor3 = THEME.Background
-        scriptsTab.BackgroundColor3 = THEME.SurfaceLight
-        scriptsTab.TextColor3 = THEME.Text
-    end)
-    
+
     makeDraggable(mainUI, header)
 end
 
--- ===== LAUNCH =====
-buildMainUI()local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
-local player = Players.LocalPlayer
-local camera = Workspace.CurrentCamera
-
--- Wait for character
-if not player.Character then
-    player.CharacterAdded:Wait()
-end
-
--- ===== CONFIG =====
-local AIMBOT_KEYBIND = Enum.KeyCode.Q
-local AIMBOT_SMOOTHNESS = 0.08
-local AIMBOT_FOV = 300
-local RAGEBOT_KEYBIND = Enum.KeyCode.R
-
--- ===== PREMIUM THEME =====
-local THEME = {
-    Background = Color3.fromRGB(5, 5, 8),
-    Surface = Color3.fromRGB(15, 15, 22),
-    SurfaceLight = Color3.fromRGB(28, 28, 40),
-    Primary = Color3.fromRGB(0, 255, 255),
-    Secondary = Color3.fromRGB(180, 0, 255),
-    Accent = Color3.fromRGB(255, 50, 150),
-    Success = Color3.fromRGB(0, 255, 150),
-    Danger = Color3.fromRGB(255, 50, 80),
-    Warning = Color3.fromRGB(255, 200, 50),
-    Gold = Color3.fromRGB(255, 215, 0),
-    Text = Color3.fromRGB(255, 255, 255),
-    TextDim = Color3.fromRGB(120, 120, 140),
-    Rage = Color3.fromRGB(255, 0, 60),
-}
-
--- ===== HELPER FUNCTIONS (DEFINE FIRST) =====
-local function addCorner(parent, radius)
-    local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, radius or 12)
-    c.Parent = parent
-    return c
-end
-
-local function addStroke(parent, color, thickness)
-    local s = Instance.new("UIStroke")
-    s.Color = color or THEME.Primary
-    s.Thickness = thickness or 1.5
-    s.Transparency = 0.3
-    s.Parent = parent
-    return s
-end
-
-local function addGlow(parent, color)
-    local glow = Instance.new("ImageLabel")
-    glow.Name = "Glow"
-    glow.AnchorPoint = Vector2.new(0.5, 0.5)
-    glow.BackgroundTransparency = 1
-    glow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    glow.Size = UDim2.new(1, 60, 1, 60)
-    glow.Image = "rbxassetid://4996890006"
-    glow.ImageColor3 = color or THEME.Primary
-    glow.ImageTransparency = 0.7
-    glow.ZIndex = parent.ZIndex - 1
-    glow.Parent = parent
-    return glow
-end
-
-local function wireButton(btn, baseColor)
-    local stroke = btn:FindFirstChildOfClass("UIStroke")
-    local originalSize = btn.Size
-    
-    btn.MouseEnter:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
-            BackgroundColor3 = baseColor:Lerp(Color3.fromRGB(255,255,255), 0.2),
-            Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset + 6, originalSize.Y.Scale, originalSize.Y.Offset + 6)
-        }):Play()
-        if stroke then
-            TweenService:Create(stroke, TweenInfo.new(0.25), {Transparency = 0, Thickness = 2.5}):Play()
-        end
-    end)
-    
-    btn.MouseLeave:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
-            BackgroundColor3 = baseColor,
-            Size = originalSize
-        }):Play()
-        if stroke then
-            TweenService:Create(stroke, TweenInfo.new(0.25), {Transparency = 0.3, Thickness = 1.5}):Play()
-        end
-    end)
-    
-    btn.MouseButton1Down:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.1), {
-            Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset - 4, originalSize.Y.Scale, originalSize.Y.Offset - 4)
-        }):Play()
-    end)
-    
-    btn.MouseButton1Up:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.1), {
-            Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset + 6, originalSize.Y.Scale, originalSize.Y.Offset + 6)
-        }):Play()
-    end)
-end
-
-local function makeDraggable(frame, dragHandle)
-    local dragging = false
-    local dragStart, startPos
-    
-    dragHandle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = Vector2.new(input.Position.X, input.Position.Y)
-            startPos = frame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local currentPos = Vector2.new(input.Position.X, input.Position.Y)
-            local delta = currentPos - dragStart
-            frame.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
-end
-
--- ScreenGui
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "VoidUltimate"
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = player:WaitForChild("PlayerGui")
-
--- FOV Circle
-local fovCircle = Instance.new("Frame")
-fovCircle.Name = "FOVCircle"
-fovCircle.Size = UDim2.fromOffset(AIMBOT_FOV * 2, AIMBOT_FOV * 2)
-fovCircle.Position = UDim2.new(0.5, -AIMBOT_FOV, 0.5, -AIMBOT_FOV)
-fovCircle.BackgroundTransparency = 1
-fovCircle.BorderSizePixel = 0
-fovCircle.Visible = false
-fovCircle.Parent = screenGui
-
-local fovCorner = Instance.new("UICorner")
-fovCorner.CornerRadius = UDim.new(1, 0)
-fovCorner.Parent = fovCircle
-
-local fovStroke = Instance.new("UIStroke")
-fovStroke.Color = THEME.Primary
-fovStroke.Thickness = 3
-fovStroke.Transparency = 0.3
-fovStroke.Parent = fovCircle
-
--- ===== KEYSTROKE UI =====
-local keystrokeUI = Instance.new("Frame")
-keystrokeUI.Name = "Keystrokes"
-keystrokeUI.Size = UDim2.fromOffset(200, 120)
-keystrokeUI.Position = UDim2.new(0, 20, 0.5, -60)
-keystrokeUI.BackgroundColor3 = THEME.Background
-keystrokeUI.BackgroundTransparency = 0.3
-keystrokeUI.BorderSizePixel = 0
-keystrokeUI.Visible = false
-keystrokeUI.Parent = screenGui
-addCorner(keystrokeUI, 12)
-addStroke(keystrokeUI, THEME.Primary, 1)
-
-local ksTitle = Instance.new("TextLabel")
-ksTitle.Size = UDim2.new(1, 0, 0, 20)
-ksTitle.BackgroundTransparency = 1
-ksTitle.Text = "KEYSTROKES"
-ksTitle.TextColor3 = THEME.Primary
-ksTitle.Font = Enum.Font.GothamBold
-ksTitle.TextSize = 10
-ksTitle.Parent = keystrokeUI
-
-local keysContainer = Instance.new("Frame")
-keysContainer.Size = UDim2.new(1, -10, 1, -25)
-keysContainer.Position = UDim2.fromOffset(5, 22)
-keysContainer.BackgroundTransparency = 1
-keysContainer.Parent = keystrokeUI
-
-local keyLabels = {}
-local keyPositions = {
-    W = {0.5, -25, 0, 0},
-    A = {0, 5, 0, 35},
-    S = {0.5, -25, 0, 35},
-    D = {1, -55, 0, 35},
-    Space = {0.5, -40, 0, 70},
-    Q = {0, 5, 0, 70},
-    R = {1, -55, 0, 70}
-}
-
-for key, pos in pairs(keyPositions) do
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.fromOffset(50, 30)
-    label.Position = UDim2.new(pos[1], pos[2], pos[3], pos[4])
-    label.BackgroundColor3 = THEME.Surface
-    label.Text = key == "Space" and "SPC" or key
-    label.TextColor3 = THEME.TextDim
-    label.Font = Enum.Font.GothamBold
-    label.TextSize = 12
-    label.Parent = keysContainer
-    addCorner(label, 6)
-    keyLabels[key] = label
-end
-
--- Keystroke detection
-UserInputService.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    local key = input.KeyCode.Name
-    if keyLabels[key] then
-        keyLabels[key].BackgroundColor3 = THEME.Primary
-        keyLabels[key].TextColor3 = THEME.Background
-    end
-    if input.KeyCode == Enum.KeyCode.Space and keyLabels["Space"] then
-        keyLabels["Space"].BackgroundColor3 = THEME.Primary
-        keyLabels["Space"].TextColor3 = THEME.Background
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input, gp)
-    local key = input.KeyCode.Name
-    if keyLabels[key] then
-        keyLabels[key].BackgroundColor3 = THEME.Surface
-        keyLabels[key].TextColor3 = THEME.TextDim
-    end
-    if input.KeyCode == Enum.KeyCode.Space and keyLabels["Space"] then
-        keyLabels["Space"].BackgroundColor3 = THEME.Surface
-        keyLabels["Space"].TextColor3 = THEME.TextDim
-    end
-end)
-
--- ===== REAL WORKING SCRIPTS =====
-local ScriptLibrary = {
-    {name = "Infinite Yield", game = "Universal", type = "Keyless", features = "Admin commands, fly, noclip, tools", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()"},
-    {name = "Dark Dex", game = "Universal", type = "Keyless", features = "Explorer, remote spy, script dumper", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/Babyhamsta/RBLX_DEX/main/dex_v2.lua'))()"},
-    {name = "Owl Hub", game = "Multiple FPS", type = "Keyless", features = "Aimbot, ESP, wallbang for 40+ games", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/CriShoux/OwlHub/master/OwlHub.txt'))()"},
-    {name = "Vape V4", game = "Bedwars", type = "Keyless", features = "Kill aura, scaffold, velocity, reach", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/7GrandDadPGN/VapeV4ForRoblox/main/NewMainScript.lua', true))()"},
-    {name = "Redz Hub", game = "Fisch", type = "Keyless", features = "Auto fish, auto sell, best rod finder", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/REDzHUB/REDzHUB/main/REDzHUB'))()"},
-    {name = "Zen Hub", game = "Blox Fruits", type = "Keyless", features = "Auto farm, raid, mastery, fruit sniper", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/ZenHubThe/zenhub/main/zenhub'))()"},
-    {name = "HaruHub", game = "Multiple", type = "Keyless", features = "35+ games support, daily updates", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/HaruHub/haru/main/loader'))()"},
-    {name = "SystemBroken", game = "Ragdoll Engine", type = "Keyless", features = "Push aura, fling, anti fling, bypass", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/H20CalibreYT/SystemBroken/mainn'))()"},
-    {name = "Phantom X", game = "Multiple", type = "Keyless", features = "Universal admin, trolling, tools", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/phantomx/phantomx/main/phantomx.lua'))()"},
-    {name = "CMD-X", game = "Universal", type = "Keyless", features = "Admin commands, server management", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/CMD-X/CMD-X/master/cmd-x'))()"},
-    {name = "Kronos", game = "MM2", type = "Keyless", features = "ESP, sheriff aimbot, murderer ESP", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/Kronos/kronos/main/mm2.lua'))()"},
-    {name = "Eclipse", game = "Doors", type = "Keyless", features = "ESP, god mode, auto loot, no screech", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/Eclipse/eclipse/main/doors.lua'))()"},
-    {name = "Pet Sim X", game = "Pet Simulator X", type = "Keyless", features = "Auto farm, auto hatch, dupe", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/petsimx/petsimx/main/script.lua'))()"},
-    {name = "Anime Adventures", game = "Anime Adventures", type = "Keyless", features = "Auto farm, summon, macro, story", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/aa/adventures/main/script.lua'))()"},
-    {name = "Shindo Life", game = "Shindo Life", type = "Keyless", features = "Auto farm, spin, rank up fast", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/shindo/shindo/main/script.lua'))()"},
-    {name = "Jailbreak", game = "Jailbreak", type = "Keyless", features = "Auto rob, ESP, car speed, fly", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/jailbreak/jailbreak/main/script.lua'))()"},
-    {name = "Brookhaven", game = "Brookhaven RP", type = "Keyless", features = "Admin, house bypass, trolling", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/brookhaven/brookhaven/main/script.lua'))()"},
-    {name = "Tower of Hell", game = "Tower of Hell", type = "Keyless", features = "Auto win, god mode, anti cheat bypass", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/toh/toh/main/script.lua'))()"},
-    {name = "Evade", game = "Evade", type = "Keyless", features = "Auto farm, ESP, auto revive", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/evade/evade/main/script.lua'))()"},
-    {name = "Slap Battles", game = "Slap Battles", type = "Keyless", features = "Auto slap, god mode, anti ragdoll", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/slap/slap/main/script.lua'))()"},
-    {name = "Lumber Tycoon 2", game = "Lumber Tycoon 2", type = "Keyless", features = "Auto chop, auto sell, dupe items", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/lt2/lt2/main/script.lua'))()"},
-    {name = "Bee Swarm", game = "Bee Swarm Simulator", type = "Keyless", features = "Auto farm, quest, auto hatch", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/bss/bss/main/script.lua'))()"},
-    {name = "King Legacy", game = "King Legacy", type = "Keyless", features = "Auto farm, quest, stats, raid", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/kl/kl/main/script.lua'))()"},
-    {name = "Deepwoken", game = "Deepwoken", type = "Keyless", features = "ESP, auto parry, mob farm", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/deepwoken/deepwoken/main/script.lua'))()"},
-    {name = "Blade Ball", game = "Blade Ball", type = "Keyless", features = "Auto parry, spam, anti cheat bypass", code = "loadstring(game:HttpGet('https://raw.githubusercontent.com/r4mpage4/4R4mpageHub/main/FixedAntiCheat.lua'))()"},
-}
-
--- ===== CRAZY VOIDSPAM =====
-local voidspamming = false
-local voidspamConn = nil
-local bodyVel = nil
-local bodyGyro = nil
-local screenShakeConn = nil
-
-local function getRoot()
-    local char = player.Character
-    if not char then return nil end
-    return char:FindFirstChild("HumanoidRootPart")
-end
-
-local function getHumanoid()
-    local char = player.Character
-    if not char then return nil end
-    return char:FindFirstChild("Humanoid")
-end
-
-local function createBodyVelocity()
-    if bodyVel then bodyVel:Destroy() end
-    if bodyGyro then bodyGyro:Destroy() end
-    local root = getRoot()
-    if not root then return end
-    
-    bodyVel = Instance.new("BodyVelocity")
-    bodyVel.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bodyVel.Velocity = Vector3.zero
-    bodyVel.P = 999999
-    bodyVel.Parent = root
-    
-    bodyGyro = Instance.new("BodyGyro")
-    bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    bodyGyro.P = 999999
-    bodyGyro.Parent = root
-end
-
-local function destroyBodyVelocity()
-    if bodyVel then
-        bodyVel:Destroy()
-        bodyVel = nil
-    end
-    if bodyGyro then
-        bodyGyro:Destroy()
-        bodyGyro = nil
-    end
-end
-
--- Screen shake effect
-local function startScreenShake()
-    screenShakeConn = RunService.RenderStepped:Connect(function()
-        if not voidspamming then return end
-        camera.CFrame = camera.CFrame * CFrame.new(
-            math.random(-5, 5) / 10,
-            math.random(-5, 5) / 10,
-            math.random(-5, 5) / 10
-        ) * CFrame.Angles(
-            math.rad(math.random(-3, 3)),
-            math.rad(math.random(-3, 3)),
-            math.rad(math.random(-3, 3))
-        )
-    end)
-end
-
-local function stopScreenShake()
-    if screenShakeConn then
-        screenShakeConn:Disconnect()
-        screenShakeConn = nil
-    end
-end
-
-local function doCrazyVoidspam()
-    local root = getRoot()
-    local humanoid = getHumanoid()
-    if not root or not humanoid then return end
-    
-    -- Disable all states
-    for _, state in ipairs(Enum.HumanoidStateType:GetEnumItems()) do
-        humanoid:SetStateEnabled(state, false)
-    end
-    
-    -- Extreme random position
-    local crazyOffset = Vector3.new(
-        math.random(-999999, 999999),
-        math.random(-999999, 999999),
-        math.random(-999999, 999999)
-    )
-    root.CFrame = root.CFrame + crazyOffset
-    
-    -- Extreme velocity
-    root.AssemblyLinearVelocity = Vector3.new(
-        math.random(-9999999, 9999999),
-        math.random(-9999999, 9999999),
-        math.random(-9999999, 9999999)
-    )
-    
-    -- Crazy rotation
-    root.AssemblyAngularVelocity = Vector3.new(
-        math.random(-999999, 999999),
-        math.random(-999999, 999999),
-        math.random(-999999, 999999)
-    )
-    
-    -- Random orientation
-    root.CFrame = CFrame.new(root.Position) * CFrame.Angles(
-        math.random(-100000, 100000),
-        math.random(-100000, 100000),
-        math.random(-100000, 100000)
-    )
-    
-    if bodyVel then
-        bodyVel.Velocity = Vector3.new(
-            math.random(-999999, 999999),
-            math.random(-999999, 999999),
-            math.random(-999999, 999999)
-        )
-    end
-    
-    if bodyGyro then
-        bodyGyro.CFrame = CFrame.Angles(
-            math.random(-100000, 100000),
-            math.random(-100000, 100000),
-            math.random(-100000, 100000)
-        )
-    end
-    
-    -- Random size changes
-    for _, part in ipairs(player.Character:GetDescendants()) do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-            part.Size = Vector3.new(
-                math.random(0.1, 10),
-                math.random(0.1, 10),
-                math.random(0.1, 10)
-            )
-        end
-    end
-end
-
-local function startVoidspam()
-    if voidspamming then return end
-    voidspamming = true
-    createBodyVelocity()
-    startScreenShake()
-    
-    voidspamConn = RunService.Heartbeat:Connect(function()
-        if not voidspamming then return end
-        doCrazyVoidspam()
-    end)
-end
-
-local function stopVoidspam()
-    voidspamming = false
-    if voidspamConn then
-        voidspamConn:Disconnect()
-        voidspamConn = nil
-    end
-    stopScreenShake()
-    destroyBodyVelocity()
-    
-    local root = getRoot()
-    if root then
-        root.AssemblyLinearVelocity = Vector3.zero
-        root.AssemblyAngularVelocity = Vector3.zero
-    end
-    
-    -- Reset sizes
-    for _, part in ipairs(player.Character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            if part.Name == "Head" then
-                part.Size = Vector3.new(2, 1, 1)
-            elseif part.Name == "Torso" or part.Name == "UpperTorso" then
-                part.Size = Vector3.new(2, 2, 1)
-            elseif part.Name == "Left Arm" or part.Name == "Right Arm" or part.Name == "LeftUpperArm" or part.Name == "RightUpperArm" then
-                part.Size = Vector3.new(1, 2, 1)
-            elseif part.Name == "Left Leg" or part.Name == "Right Leg" or part.Name == "LeftUpperLeg" or part.Name == "RightUpperLeg" then
-                part.Size = Vector3.new(1, 2, 1)
-            elseif part.Name == "HumanoidRootPart" then
-                part.Size = Vector3.new(2, 2, 1)
-            end
-        end
-    end
-    
-    local humanoid = getHumanoid()
-    if humanoid then
-        for _, state in ipairs(Enum.HumanoidStateType:GetEnumItems()) do
-            humanoid:SetStateEnabled(state, true)
-        end
-    end
-end
-
--- ===== ORBIT =====
-local orbiting = false
-local orbitConn = nil
-local orbitAngle = 0
-
-local function getNearestRoot()
-    local myRoot = getRoot()
-    if not myRoot then return nil end
-    local closest, dist = nil, math.huge
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player and p.Character then
-            local theirRoot = p.Character:FindFirstChild("HumanoidRootPart")
-            if theirRoot then
-                local d = (theirRoot.Position - myRoot.Position).Magnitude
-                if d < dist then
-                    dist = d
-                    closest = theirRoot
-                end
-            end
-        end
-    end
-    return closest
-end
-
-local function startOrbit()
-    if orbiting then return end
-    orbiting = true
-    orbitConn = RunService.Heartbeat:Connect(function(dt)
-        local myRoot = getRoot()
-        local target = getNearestRoot()
-        if not myRoot or not target then return end
-        orbitAngle = orbitAngle + 20 * dt
-        local offset = Vector3.new(math.cos(orbitAngle) * 6, 2, math.sin(orbitAngle) * 6)
-        myRoot.CFrame = CFrame.lookAt(target.Position + offset, target.Position)
-        myRoot.AssemblyLinearVelocity = Vector3.zero
-    end)
-end
-
-local function stopOrbit()
-    orbiting = false
-    if orbitConn then
-        orbitConn:Disconnect()
-        orbitConn = nil
-    end
-end
-
--- ===== AIMBOT & RAGEBOT =====
-local aimbotActive = false
-local ragebotActive = false
-local aimbotTarget = nil
-
-local function getClosestPlayer()
-    local closest, shortest = nil, AIMBOT_FOV
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player and p.Character then
-            local head = p.Character:FindFirstChild("Head")
-            local humanoid = p.Character:FindFirstChild("Humanoid")
-            if head and humanoid and humanoid.Health > 0 then
-                local pos, onScreen = camera:WorldToViewportPoint(head.Position)
-                if onScreen then
-                    local dist = (Vector2.new(pos.X, pos.Y) - UserInputService:GetMouseLocation()).Magnitude
-                    if dist < shortest then
-                        shortest = dist
-                        closest = p
-                    end
-                end
-            end
-        end
-    end
-    return closest
-end
-
--- Ragebot features
-local function ragebotFeatures()
-    if not ragebotActive then return end
-    
-    local target = getClosestPlayer()
-    if target and target.Character then
-        local head = target.Character:FindFirstChild("Head")
-        if head then
-            -- Instant snap
-            camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
-            
-            -- Rapid fire aim jitter
-            for i = 1, 5 do
-                camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position + Vector3.new(math.random(-1,1), math.random(-1,1), math.random(-1,1)))
-                task.wait(0.01)
-            end
-        end
-    end
-end
-
-RunService.RenderStepped:Connect(function()
-    if ragebotActive then
-        ragebotFeatures()
-        fovCircle.Visible = true
-        fovCircle.BackgroundColor3 = THEME.Rage
-        fovStroke.Color = THEME.Rage
-    elseif aimbotActive then
-        if not aimbotTarget or not aimbotTarget.Character then
-            aimbotTarget = getClosestPlayer()
-        end
-        if aimbotTarget and aimbotTarget.Character then
-            local head = aimbotTarget.Character:FindFirstChild("Head")
-            if head then
-                local targetCF = CFrame.new(camera.CFrame.Position, head.Position)
-                camera.CFrame = camera.CFrame:Lerp(targetCF, 1 - AIMBOT_SMOOTHNESS)
-            end
-        end
-        fovCircle.Visible = true
-        fovCircle.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
-        fovStroke.Color = THEME.Primary
-    else
-        aimbotTarget = nil
-        fovCircle.Visible = false
-    end
-end)
-
-UserInputService.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if input.KeyCode == AIMBOT_KEYBIND then
-        aimbotActive = not aimbotActive
-        ragebotActive = false
-    elseif input.KeyCode == RAGEBOT_KEYBIND then
-        ragebotActive = not ragebotActive
-        aimbotActive = false
-    end
-end)
-
--- ===== MAIN UI WITH TABS =====
-local mainUI = nil
-local currentTab = "Scripts"
-
-local function buildMainUI()
-    if mainUI then mainUI:Destroy() end
-    
-    mainUI = Instance.new("Frame")
-    mainUI.Size = UDim2.fromOffset(500, 650)
-    mainUI.Position = UDim2.new(0.5, -250, 0.5, -325)
-    mainUI.BackgroundColor3 = THEME.Background
-    mainUI.BorderSizePixel = 0
-    mainUI.Parent = screenGui
-    addCorner(mainUI, 20)
-    addStroke(mainUI, THEME.Primary, 2)
-    
-    -- Glow
-    local glow = addGlow(mainUI, THEME.Primary)
-    
-    -- Header with gradient animation
-    local header = Instance.new("Frame")
-    header.Size = UDim2.new(1, 0, 0, 100)
-    header.BackgroundColor3 = THEME.Surface
-    header.BorderSizePixel = 0
-    header.Parent = mainUI
-    addCorner(header, 20)
-    
-    local headerGradient = Instance.new("UIGradient")
-    headerGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, THEME.Primary),
-        ColorSequenceKeypoint.new(0.5, THEME.Secondary),
-        ColorSequenceKeypoint.new(1, THEME.Accent)
-    })
-    headerGradient.Rotation = 0
-    headerGradient.Parent = header
-    
-    -- Animate gradient
-    task.spawn(function()
-        while mainUI and mainUI.Parent do
-            TweenService:Create(headerGradient, TweenInfo.new(2, Enum.EasingStyle.Linear), {
-                Rotation = headerGradient.Rotation + 180
-            }):Play()
-            task.wait(2)
-        end
-    end)
-    
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -100, 0, 40)
-    title.Position = UDim2.fromOffset(20, 10)
-    title.BackgroundTransparency = 1
-    title.Text = "⚡ VOID ULTIMATE"
-    title.TextColor3 = THEME.Text
-    title.Font = Enum.Font.GothamBlack
-    title.TextSize = 28
-    title.Parent = header
-    
-    local subtitle = Instance.new("TextLabel")
-    subtitle.Size = UDim2.new(1, -100, 0, 20)
-    subtitle.Position = UDim2.fromOffset(20, 50)
-    subtitle.BackgroundTransparency = 1
-    subtitle.Text = "ScriptBlox Edition • Ragebot • Keystrokes"
-    subtitle.TextColor3 = THEME.Text
-    subtitle.Font = Enum.Font.Gotham
-    subtitle.TextSize = 12
-    subtitle.Parent = header
-    
-    -- Close button
-    local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.fromOffset(40, 40)
-    closeBtn.Position = UDim2.new(1, -50, 0, 10)
-    closeBtn.BackgroundColor3 = THEME.Danger
-    closeBtn.Text = "×"
-    closeBtn.TextColor3 = THEME.Text
-    closeBtn.Font = Enum.Font.GothamBlack
-    closeBtn.TextSize = 28
-    closeBtn.Parent = header
-    addCorner(closeBtn, 10)
-    
-    closeBtn.MouseButton1Click:Connect(function()
-        stopVoidspam()
-        stopOrbit()
-        aimbotActive = false
-        ragebotActive = false
-        mainUI:Destroy()
-    end)
-    
-    -- Tab buttons
-    local tabContainer = Instance.new("Frame")
-    tabContainer.Size = UDim2.new(1, -40, 0, 40)
-    tabContainer.Position = UDim2.fromOffset(20, 75)
-    tabContainer.BackgroundTransparency = 1
-    tabContainer.Parent = header
-    
-    local tabLayout = Instance.new("UIListLayout")
-    tabLayout.FillDirection = Enum.FillDirection.Horizontal
-    tabLayout.Padding = UDim.new(0, 10)
-    tabLayout.Parent = tabContainer
-    
-    local scriptsTab = Instance.new("TextButton")
-    scriptsTab.Size = UDim2.new(0.5, -5, 1, 0)
-    scriptsTab.BackgroundColor3 = THEME.Primary
-    scriptsTab.Text = "📜 SCRIPTS"
-    scriptsTab.TextColor3 = THEME.Background
-    scriptsTab.Font = Enum.Font.GothamBold
-    scriptsTab.TextSize = 14
-    scriptsTab.Parent = tabContainer
-    addCorner(scriptsTab, 8)
-    
-    local settingsTab = Instance.new("TextButton")
-    settingsTab.Size = UDim2.new(0.5, -5, 1, 0)
-    settingsTab.BackgroundColor3 = THEME.SurfaceLight
-    settingsTab.Text = "⚙️ SETTINGS"
-    settingsTab.TextColor3 = THEME.Text
-    settingsTab.Font = Enum.Font.GothamBold
-    settingsTab.TextSize = 14
-    settingsTab.Parent = tabContainer
-    addCorner(settingsTab, 8)
-    
-    -- Content container
-    local content = Instance.new("Frame")
-    content.Size = UDim2.new(1, -30, 1, -120)
-    content.Position = UDim2.fromOffset(15, 110)
-    content.BackgroundTransparency = 1
-    content.Parent = mainUI
-    
-    -- SCRIPTS TAB CONTENT
-    local scriptsContent = Instance.new("Frame")
-    scriptsContent.Size = UDim2.new(1, 0, 1, 0)
-    scriptsContent.BackgroundTransparency = 1
-    scriptsContent.Visible = true
-    scriptsContent.Parent = content
-    
-    -- Search
-    local searchBox = Instance.new("TextBox")
-    searchBox.Size = UDim2.new(1, 0, 0, 35)
-    searchBox.BackgroundColor3 = THEME.Surface
-    searchBox.Text = ""
-    searchBox.PlaceholderText = "🔍 Search 25+ ScriptBlox scripts..."
-    searchBox.TextColor3 = THEME.Text
-    searchBox.PlaceholderColor3 = THEME.TextDim
-    searchBox.Font = Enum.Font.Gotham
-    searchBox.TextSize = 13
-    searchBox.Parent = scriptsContent
-    addCorner(searchBox, 8)
-    addStroke(searchBox, THEME.SurfaceLight)
-    
-    -- Script list
-    local scrollFrame = Instance.new("ScrollingFrame")
-    scrollFrame.Size = UDim2.new(1, 0, 1, -45)
-    scrollFrame.Position = UDim2.fromOffset(0, 45)
-    scrollFrame.BackgroundColor3 = THEME.Surface
-    scrollFrame.BorderSizePixel = 0
-    scrollFrame.ScrollBarThickness = 6
-    scrollFrame.ScrollBarImageColor3 = THEME.Primary
-    scrollFrame.Parent = scriptsContent
-    addCorner(scrollFrame, 12)
-    
-    local scriptListLayout = Instance.new("UIListLayout")
-    scriptListLayout.Padding = UDim.new(0, 8)
-    scriptListLayout.Parent = scrollFrame
-    
-    -- Populate scripts
-    local function populateScripts(filter)
-        for _, child in ipairs(scrollFrame:GetChildren()) do
-            if child:IsA("Frame") then child:Destroy() end
-        end
-        
-        for _, scriptData in ipairs(ScriptLibrary) do
-            if filter == "" or 
-                scriptData.name:lower():find(filter:lower()) or 
-                scriptData.game:lower():find(filter:lower()) then
-                
-                local card = Instance.new("Frame")
-                card.Size = UDim2.new(1, -10, 0, 70)
-                card.BackgroundColor3 = THEME.SurfaceLight
-                card.Parent = scrollFrame
-                addCorner(card, 10)
-                
-                local cardStroke = addStroke(card, THEME.Primary, 1)
-                cardStroke.Transparency = 0.5
-                
-                local name = Instance.new("TextLabel")
-                name.Size = UDim2.new(1, -80, 0, 22)
-                name.Position = UDim2.fromOffset(10, 8)
-                name.BackgroundTransparency = 1
-                name.Text = scriptData.name
-                name.TextColor3 = THEME.Primary
-                name.Font = Enum.Font.GothamBold
-                name.TextSize = 15
-                name.TextXAlignment = Enum.TextXAlignment.Left
-                name.Parent = card
-                
-                local game = Instance.new("TextLabel")
-                game.Size = UDim2.new(0.5, -10, 0, 18)
-                game.Position = UDim2.fromOffset(10, 32)
-                game.BackgroundTransparency = 1
-                game.Text = "🎮 " .. scriptData.game
-                game.TextColor3 = THEME.Text
-                game.Font = Enum.Font.Gotham
-                game.TextSize = 11
-                game.TextXAlignment = Enum.TextXAlignment.Left
-                game.Parent = card
-                
-                local type = Instance.new("TextLabel")
-                type.Size = UDim2.new(0.3, 0, 0, 18)
-                type.Position = UDim2.new(0.6, 0, 0, 32)
-                type.BackgroundTransparency = 1
-                type.Text = scriptData.type == "Keyless" and "✅ " .. scriptData.type or "🔑 " .. scriptData.type
-                type.TextColor3 = scriptData.type == "Keyless" and THEME.Success or THEME.Warning
-                type.Font = Enum.Font.GothamBold
-                type.TextSize = 11
-                type.TextXAlignment = Enum.TextXAlignment.Right
-                type.Parent = card
-                
-                local features = Instance.new("TextLabel")
-                features.Size = UDim2.new(1, -80, 0, 16)
-                features.Position = UDim2.fromOffset(10, 50)
-                features.BackgroundTransparency = 1
-                features.Text = scriptData.features
-                features.TextColor3 = THEME.TextDim
-                features.Font = Enum.Font.Gotham
-                features.TextSize = 10
-                features.TextXAlignment = Enum.TextXAlignment.Left
-                features.TextTruncate = Enum.TextTruncate.AtEnd
-                features.Parent = card
-                
-                local execBtn = Instance.new("TextButton")
-                execBtn.Size = UDim2.fromOffset(60, 50)
-                execBtn.Position = UDim2.new(1, -70, 0.5, -25)
-                execBtn.BackgroundColor3 = THEME.Success
-                execBtn.Text = "▶"
-                execBtn.TextColor3 = THEME.Text
-                execBtn.Font = Enum.Font.GothamBlack
-                execBtn.TextSize = 20
-                execBtn.Parent = card
-                addCorner(execBtn, 8)
-                
-                execBtn.MouseButton1Click:Connect(function()
-                    local success, err = pcall(function()
-                        local func = loadstring(scriptData.code)
-                        if func then func() end
-                    end)
-                    if not success then
-                        warn("Script Error: " .. tostring(err))
-                    end
-                end)
-                
-                -- Hover effects
-                local function onHover()
-                    TweenService:Create(card, TweenInfo.new(0.2), {BackgroundColor3 = THEME.Surface}):Play()
-                end
-                local function onLeave()
-                    TweenService:Create(card, TweenInfo.new(0.2), {BackgroundColor3 = THEME.SurfaceLight}):Play()
-                end
-                
-                card.MouseEnter:Connect(onHover)
-                card.MouseLeave:Connect(onLeave)
-            end
-        end
-        
-        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #scrollFrame:GetChildren() * 78)
-    end
-    
-    searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-        populateScripts(searchBox.Text)
-    end)
-    
-    populateScripts("")
-    
-    -- SETTINGS TAB CONTENT
-    local settingsContent = Instance.new("Frame")
-    settingsContent.Size = UDim2.new(1, 0, 1, 0)
-    settingsContent.BackgroundTransparency = 1
-    settingsContent.Visible = false
-    settingsContent.Parent = content
-    
-    local settingsLayout = Instance.new("UIListLayout")
-    settingsLayout.Padding = UDim.new(0, 12)
-    settingsLayout.Parent = settingsContent
-    
-    -- Voidspam button
-    local voidspamBtn = Instance.new("TextButton")
-    voidspamBtn.Size = UDim2.new(1, 0, 0, 60)
-    voidspamBtn.BackgroundColor3 = THEME.Danger
-    voidspamBtn.Text = "🌀 VOIDSPAM: OFF"
-    voidspamBtn.TextColor3 = THEME.Text
-    voidspamBtn.Font = Enum.Font.GothamBlack
-    voidspamBtn.TextSize = 18
-    voidspamBtn.Parent = settingsContent
-    addCorner(voidspamBtn, 12)
-    addGlow(voidspamBtn, THEME.Danger)
-    addStroke(voidspamBtn, THEME.Danger, 2)
-    
-    -- Orbit button
-    local orbitBtn = Instance.new("TextButton")
-    orbitBtn.Size = UDim2.new(1, 0, 0, 50)
-    orbitBtn.BackgroundColor3 = THEME.Warning
-    orbitBtn.Text = "🐚 ORBIT: OFF"
-    orbitBtn.TextColor3 = THEME.Text
-    orbitBtn.Font = Enum.Font.GothamBold
-    orbitBtn.TextSize = 16
-    orbitBtn.Parent = settingsContent
-    addCorner(orbitBtn, 12)
-    addStroke(orbitBtn, THEME.Warning, 2)
-    
-    -- Aimbot button
-    local aimbotBtn = Instance.new("TextButton")
-    aimbotBtn.Size = UDim2.new(1, 0, 0, 50)
-    aimbotBtn.BackgroundColor3 = THEME.Primary
-    aimbotBtn.Text = "🎯 AIMBOT: OFF"
-    aimbotBtn.TextColor3 = THEME.Text
-    aimbotBtn.Font = Enum.Font.GothamBold
-    aimbotBtn.TextSize = 16
-    aimbotBtn.Parent = settingsContent
-    addCorner(aimbotBtn, 12)
-    addStroke(aimbotBtn, THEME.Primary, 2)
-    
-    -- Ragebot button
-    local ragebotBtn = Instance.new("TextButton")
-    ragebotBtn.Size = UDim2.new(1, 0, 0, 60)
-    ragebotBtn.BackgroundColor3 = THEME.Rage
-    ragebotBtn.Text = "🔥 RAGEBOT: OFF"
-    ragebotBtn.TextColor3 = THEME.Text
-    ragebotBtn.Font = Enum.Font.GothamBlack
-    ragebotBtn.TextSize = 18
-    ragebotBtn.Parent = settingsContent
-    addCorner(ragebotBtn, 12)
-    addGlow(ragebotBtn, THEME.Rage)
-    addStroke(ragebotBtn, THEME.Rage, 2)
-    
-    -- Keystrokes toggle
-    local ksBtn = Instance.new("TextButton")
-    ksBtn.Size = UDim2.new(1, 0, 0, 50)
-    ksBtn.BackgroundColor3 = THEME.Secondary
-    ksBtn.Text = "⌨️ KEYSTROKES: OFF"
-    ksBtn.TextColor3 = THEME.Text
-    ksBtn.Font = Enum.Font.GothamBold
-    ksBtn.TextSize = 16
-    ksBtn.Parent = settingsContent
-    addCorner(ksBtn, 12)
-    addStroke(ksBtn, THEME.Secondary, 2)
-    
-    -- Status label
-    local status = Instance.new("TextLabel")
-    status.Size = UDim2.new(1, 0, 0, 30)
-    status.BackgroundTransparency = 1
-    status.Text = "✅ Ready"
-    status.TextColor3 = THEME.Success
-    status.Font = Enum.Font.GothamBold
-    status.TextSize = 14
-    status.Parent = settingsContent
-    
-    -- Keybinds info
-    local keybinds = Instance.new("TextLabel")
-    keybinds.Size = UDim2.new(1, 0, 0, 60)
-    keybinds.BackgroundTransparency = 1
-    keybinds.Text = "KEYBINDS:\nQ = Aimbot Toggle\nR = Ragebot Toggle"
-    keybinds.TextColor3 = THEME.TextDim
-    keybinds.Font = Enum.Font.Gotham
-    keybinds.TextSize = 11
-    keybinds.TextWrapped = true
-    keybinds.Parent = settingsContent
-    
-    -- Button connections
-    voidspamBtn.MouseButton1Click:Connect(function()
-        if voidspamming then
-            stopVoidspam()
-            voidspamBtn.Text = "🌀 VOIDSPAM: OFF"
-            voidspamBtn.BackgroundColor3 = THEME.Danger
-            status.Text = "Voidspam Stopped"
-            status.TextColor3 = THEME.Danger
-        else
-            stopOrbit()
-            orbitBtn.Text = "🐚 ORBIT: OFF"
-            startVoidspam()
-            voidspamBtn.Text = "🌀 VOIDSPAM: ON 🔥"
-            voidspamBtn.BackgroundColor3 = THEME.Success
-            status.Text = "VOIDSPAM ACTIVE - CRAZY MODE"
-            status.TextColor3 = THEME.Rage
-        end
-    end)
-    
-    orbitBtn.MouseButton1Click:Connect(function()
-        if orbiting then
-            stopOrbit()
-            orbitBtn.Text = "🐚 ORBIT: OFF"
-            status.Text = "Orbit Stopped"
-        else
-            stopVoidspam()
-            voidspamBtn.Text = "🌀 VOIDSPAM: OFF"
-            voidspamBtn.BackgroundColor3 = THEME.Danger
-            startOrbit()
-            orbitBtn.Text = "🐚 ORBIT: ON"
-            status.Text = "Orbit Active"
-        end
-    end)
-    
-    aimbotBtn.MouseButton1Click:Connect(function()
-        aimbotActive = not aimbotActive
-        ragebotActive = false
-        ragebotBtn.Text = "🔥 RAGEBOT: OFF"
-        ragebotBtn.BackgroundColor3 = THEME.Rage
-        
-        if aimbotActive then
-            aimbotBtn.Text = "🎯 AIMBOT: ON"
-            aimbotBtn.BackgroundColor3 = THEME.Success
-            fovCircle.Visible = true
-            status.Text = "Aimbot Active"
-        else
-            aimbotBtn.Text = "🎯 AIMBOT: OFF"
-            aimbotBtn.BackgroundColor3 = THEME.Primary
-            fovCircle.Visible = false
-            status.Text = "Aimbot Off"
-        end
-    end)
-    
-    ragebotBtn.MouseButton1Click:Connect(function()
-        ragebotActive = not ragebotActive
-        aimbotActive = false
-        aimbotBtn.Text = "🎯 AIMBOT: OFF"
-        aimbotBtn.BackgroundColor3 = THEME.Primary
-        
-        if ragebotActive then
-            ragebotBtn.Text = "🔥 RAGEBOT: ON ⚡"
-            ragebotBtn.BackgroundColor3 = THEME.Success
-            fovCircle.Visible = true
-            status.Text = "RAGEBOT ACTIVE - DESTROY"
-            status.TextColor3 = THEME.Rage
-        else
-            ragebotBtn.Text = "🔥 RAGEBOT: OFF"
-            ragebotBtn.BackgroundColor3 = THEME.Rage
-            fovCircle.Visible = false
-            status.Text = "Ragebot Off"
-        end
-    end)
-    
-    ksBtn.MouseButton1Click:Connect(function()
-        keystrokeUI.Visible = not keystrokeUI.Visible
-        if keystrokeUI.Visible then
-            ksBtn.Text = "⌨️ KEYSTROKES: ON"
-            ksBtn.BackgroundColor3 = THEME.Success
-        else
-            ksBtn.Text = "⌨️ KEYSTROKES: OFF"
-            ksBtn.BackgroundColor3 = THEME.Secondary
-        end
-    end)
-    
-    -- Tab switching
-    scriptsTab.MouseButton1Click:Connect(function()
-        currentTab = "Scripts"
-        scriptsContent.Visible = true
-        settingsContent.Visible = false
-        scriptsTab.BackgroundColor3 = THEME.Primary
-        scriptsTab.TextColor3 = THEME.Background
-        settingsTab.BackgroundColor3 = THEME.SurfaceLight
-        settingsTab.TextColor3 = THEME.Text
-    end)
-    
-    settingsTab.MouseButton1Click:Connect(function()
-        currentTab = "Settings"
-        scriptsContent.Visible = false
-        settingsContent.Visible = true
-        settingsTab.BackgroundColor3 = THEME.Primary
-        settingsTab.TextColor3 = THEME.Background
-        scriptsTab.BackgroundColor3 = THEME.SurfaceLight
-        scriptsTab.TextColor3 = THEME.Text
-    end)
-    
-    makeDraggable(mainUI, header)
-end
-
--- ===== LAUNCH =====
 buildMainUI()
+
+print("⚡ Void Ultimate Rivals Loaded")
+print("Q = Aimbot | R = Ragebot")
+print("Voidspam + Orbit for max desync advantage!")
